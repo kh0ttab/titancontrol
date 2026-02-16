@@ -3,6 +3,8 @@ import pandas as pd
 import datetime
 import os
 import time
+import sqlite3
+import hashlib
 
 # --- БЕЗОПАСНЫЙ ИМПОРТ GEMINI ---
 try:
@@ -18,6 +20,173 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
+# --- DATABASE SETUP (PERSISTENCE) ---
+DB_FILE = "titan.db"
+
+def init_db():
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    
+    # Users Table
+    c.execute('''CREATE TABLE IF NOT EXISTS users (
+                    username TEXT PRIMARY KEY,
+                    password TEXT,
+                    name TEXT,
+                    role TEXT,
+                    avatar TEXT,
+                    is_admin BOOLEAN
+                )''')
+    
+    # Tasks Table
+    c.execute('''CREATE TABLE IF NOT EXISTS tasks (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    title TEXT,
+                    assignee TEXT,
+                    category TEXT,
+                    priority TEXT,
+                    status TEXT,
+                    planned_date TEXT,
+                    est_time REAL,
+                    act_time REAL
+                )''')
+                
+    # Shipments Table
+    c.execute('''CREATE TABLE IF NOT EXISTS shipments (
+                    id TEXT PRIMARY KEY,
+                    date TEXT,
+                    am TEXT,
+                    dest TEXT,
+                    skus TEXT,
+                    qty INTEGER,
+                    status TEXT,
+                    tracking TEXT
+                )''')
+    
+    # Create Default Admin if not exists
+    c.execute("SELECT * FROM users WHERE username = 'admin'")
+    if not c.fetchone():
+        # Password '123' hashed
+        pwd_hash = hashlib.sha256("123".encode()).hexdigest()
+        c.execute("INSERT INTO users VALUES (?, ?, ?, ?, ?, ?)", 
+                  ('admin', pwd_hash, 'Big Boss', 'CEO', '🦁', True))
+        
+        # Create Default Employee
+        c.execute("INSERT INTO users VALUES (?, ?, ?, ?, ?, ?)", 
+                  ('alex', pwd_hash, 'Alex', 'Account Manager', '👨‍💻', False))
+        
+    conn.commit()
+    conn.close()
+
+# Initialize DB on load
+init_db()
+
+# --- DATABASE FUNCTIONS ---
+def get_db_connection():
+    return sqlite3.connect(DB_FILE)
+
+def hash_password(password):
+    return hashlib.sha256(password.encode()).hexdigest()
+
+def verify_user(username, password):
+    conn = get_db_connection()
+    c = conn.cursor()
+    pwd_hash = hash_password(password)
+    c.execute("SELECT * FROM users WHERE username=? AND password=?", (username, pwd_hash))
+    user = c.fetchone()
+    conn.close()
+    if user:
+        return {"username": user[0], "name": user[2], "role": user[3], "avatar": user[4], "is_admin": user[5]}
+    return None
+
+def get_all_users():
+    conn = get_db_connection()
+    df = pd.read_sql("SELECT * FROM users", conn)
+    conn.close()
+    return df
+
+def create_user(username, password, name, role, is_admin):
+    conn = get_db_connection()
+    c = conn.cursor()
+    try:
+        c.execute("INSERT INTO users VALUES (?, ?, ?, ?, ?, ?)", 
+                  (username, hash_password(password), name, role, '👤', is_admin))
+        conn.commit()
+        return True
+    except sqlite3.IntegrityError:
+        return False
+    finally:
+        conn.close()
+
+def delete_user(username):
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute("DELETE FROM users WHERE username=?", (username,))
+    conn.commit()
+    conn.close()
+
+def get_tasks():
+    conn = get_db_connection()
+    # Return as list of dicts for easier iteration
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    c.execute("SELECT * FROM tasks ORDER BY id DESC")
+    rows = c.fetchall()
+    conn.close()
+    return [dict(row) for row in rows]
+
+def add_task(title, assignee, category, priority, planned_date, est_time):
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute("INSERT INTO tasks (title, assignee, category, priority, status, planned_date, est_time, act_time) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+              (title, assignee, category, priority, "To Do", str(planned_date), est_time, 0.0))
+    conn.commit()
+    conn.close()
+
+def update_task_status(task_id, new_status):
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute("UPDATE tasks SET status = ? WHERE id = ?", (new_status, task_id))
+    conn.commit()
+    conn.close()
+
+def get_shipments():
+    conn = get_db_connection()
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    c.execute("SELECT * FROM shipments ORDER BY date DESC")
+    rows = c.fetchall()
+    conn.close()
+    return [dict(row) for row in rows]
+
+def add_shipment(s_id, date, am, dest, skus, qty):
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute("INSERT INTO shipments VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+              (s_id, str(date), am, dest, skus, qty, "New", ""))
+    conn.commit()
+    conn.close()
+
+def update_shipment_status(s_id, new_status):
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute("UPDATE shipments SET status = ? WHERE id = ?", (new_status, s_id))
+    conn.commit()
+    conn.close()
+
+# --- GEMINI AI SETUP ---
+api_key = st.sidebar.text_input("🔑 Gemini API Key", type="password", placeholder="Paste Key for AI Features") if "authenticated" in st.session_state and st.session_state.authenticated else None
+if api_key and AI_AVAILABLE:
+    genai.configure(api_key=api_key)
+
+def ask_gemini(prompt, context=""):
+    if not AI_AVAILABLE: return "Library 'google.generativeai' not found."
+    if not api_key: return "Please enter API Key."
+    try:
+        model = genai.GenerativeModel('gemini-2.5-flash-preview-09-2025')
+        response = model.generate_content(f"You are Titan AI assistant. Context: {context}. Question: {prompt}")
+        return response.text
+    except Exception as e: return f"Error: {e}"
 
 # --- LIQUID GLASS THEME (CSS) ---
 st.markdown("""
@@ -38,7 +207,7 @@ st.markdown("""
         color: #ffffff;
     }
 
-    /* --- SIDEBAR GLASS --- */
+    /* --- GLASS ELEMENTS --- */
     [data-testid="stSidebar"] {
         background-color: rgba(9, 9, 11, 0.6);
         backdrop-filter: blur(20px);
@@ -46,21 +215,11 @@ st.markdown("""
         border-right: 1px solid rgba(255, 255, 255, 0.1);
     }
     
-    /* Typography Overrides */
     h1, h2, h3, p, label, span, div {
         color: #ffffff !important;
         text-shadow: 0 1px 2px rgba(0,0,0,0.3);
     }
-    [data-testid="stSidebar"] h1 {
-        background: linear-gradient(to right, #c084fc, #6366f1);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent !important;
-        text-shadow: none;
-        font-weight: 800;
-        letter-spacing: -1px;
-    }
-
-    /* --- GLASS CARDS --- */
+    
     .titan-card {
         background: rgba(255, 255, 255, 0.07);
         backdrop-filter: blur(16px);
@@ -69,64 +228,22 @@ st.markdown("""
         border: 1px solid rgba(255, 255, 255, 0.1);
         padding: 24px;
         box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
-        transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+        transition: transform 0.2s;
         margin-bottom: 15px;
     }
     .titan-card:hover {
         transform: translateY(-2px);
-        box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.4);
         border-color: rgba(255, 255, 255, 0.2);
     }
 
-    /* --- METRICS GLOW --- */
-    .metric-value {
-        font-size: 32px;
-        font-weight: 700;
-        background: linear-gradient(135deg, #ffffff 0%, #a5b4fc 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        margin-bottom: 5px;
-    }
-    .metric-label {
-        font-size: 14px;
-        color: rgba(255, 255, 255, 0.7) !important;
-        font-weight: 500;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-    }
-    .metric-sub {
-        font-size: 12px;
-        color: rgba(255, 255, 255, 0.5) !important;
-    }
-
-    /* --- INPUT FIELDS & SELECTBOXES --- */
-    /* Force dark background on inputs for readability */
+    /* --- INPUTS --- */
     .stTextInput input, .stSelectbox div[data-baseweb="select"] > div, .stNumberInput input, .stDateInput input {
         background-color: rgba(0, 0, 0, 0.3) !important;
         color: white !important;
         border: 1px solid rgba(255, 255, 255, 0.1) !important;
         border-radius: 10px !important;
     }
-    .stSelectbox div[data-baseweb="select"] span {
-        color: white !important;
-    }
-    /* Dropdown menu items */
-    ul[data-baseweb="menu"] {
-        background-color: #18181b !important;
-    }
     
-    /* --- DATAFRAME --- */
-    div[data-testid="stDataFrame"] {
-        background-color: rgba(0, 0, 0, 0.2);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 12px;
-        padding: 10px;
-    }
-    /* Darken dataframe text for contrast if needed, or keep white */
-    div[data-testid="stDataFrame"] div {
-        color: #e4e4e7;
-    }
-
     /* --- BUTTONS --- */
     div.stButton > button {
         background: linear-gradient(90deg, #ec4899, #8b5cf6);
@@ -142,39 +259,14 @@ st.markdown("""
         box-shadow: 0 6px 20px rgba(236, 72, 153, 0.5);
         transform: scale(1.02);
     }
-    div.stButton > button:active {
-        transform: scale(0.98);
-    }
     
-    /* --- BADGES & ICONS --- */
-    .icon-box {
-        width: 48px;
-        height: 48px;
-        border-radius: 14px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 24px;
-        margin-bottom: 15px;
-        box-shadow: inset 0 0 0 1px rgba(255,255,255,0.1);
-        backdrop-filter: blur(5px);
-    }
-    
-    .badge {
-        padding: 5px 10px;
-        border-radius: 20px;
-        font-size: 11px;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
+    /* --- BADGES --- */
+    .badge { padding: 5px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; text-transform: uppercase; }
     .badge-green { background: rgba(16, 185, 129, 0.2); color: #6ee7b7 !important; border: 1px solid rgba(16, 185, 129, 0.3); }
     .badge-blue { background: rgba(59, 130, 246, 0.2); color: #93c5fd !important; border: 1px solid rgba(59, 130, 246, 0.3); }
     .badge-yellow { background: rgba(245, 158, 11, 0.2); color: #fcd34d !important; border: 1px solid rgba(245, 158, 11, 0.3); }
     .badge-red { background: rgba(239, 68, 68, 0.2); color: #fca5a5 !important; border: 1px solid rgba(239, 68, 68, 0.3); }
-    .badge-purple { background: rgba(139, 92, 246, 0.2); color: #c4b5fd !important; border: 1px solid rgba(139, 92, 246, 0.3); }
 
-    /* Login Box Specifics */
     .login-glass {
         background: rgba(255, 255, 255, 0.05);
         backdrop-filter: blur(20px);
@@ -187,56 +279,11 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- SAFE RERUN FUNCTION ---
-def safe_rerun():
-    try:
-        st.rerun()
-    except AttributeError:
-        try:
-            st.experimental_rerun()
-        except AttributeError:
-            pass
-
-# --- DATA INITIALIZATION ---
-EMPLOYEES = [
-    {"id": "ceo", "username": "admin", "password": "123", "name": "Big Boss", "role": "CEO", "avatar": "🦁", "is_admin": True},
-    {"id": "alex", "username": "alex", "password": "123", "name": "Alex", "role": "Account Manager", "avatar": "👨‍💻", "is_admin": False},
-    {"id": "sarah", "username": "sarah", "password": "123", "name": "Sarah", "role": "Logistics Manager", "avatar": "👩‍✈️", "is_admin": True},
-    {"id": "mike", "username": "mike", "password": "123", "name": "Mike", "role": "Warehouse Lead", "avatar": "👷", "is_admin": True},
-]
-
-if "tasks" not in st.session_state:
-    st.session_state.tasks = [
-        {"id": 1, "title": "Q4 Strategy Report", "assignee": "Big Boss", "category": "Admin", "priority": "High", "status": "In Progress", "planned_date": "2023-11-15", "est_time": 4.0, "act_time": 2.0},
-        {"id": 2, "title": "Update Amazon Listings", "assignee": "Alex", "category": "Sales", "priority": "Medium", "status": "Done", "planned_date": "2023-11-10", "est_time": 2.0, "act_time": 1.5},
-        {"id": 3, "title": "Fix Walmart CSV Error", "assignee": "Alex", "category": "Tech", "priority": "High", "status": "To Do", "planned_date": "2023-11-12", "est_time": 1.0, "act_time": 0.0},
-        {"id": 4, "title": "Prepare FBA Shipment #442", "assignee": "Sarah", "category": "Logistics", "priority": "High", "status": "In Progress", "planned_date": "2023-11-14", "est_time": 3.0, "act_time": 4.0},
-        {"id": 5, "title": "Warehouse Inventory Audit", "assignee": "Mike", "category": "Logistics", "priority": "Medium", "status": "Done", "planned_date": "2023-11-01", "est_time": 5.0, "act_time": 5.0},
-        {"id": 6, "title": "TikTok Shop Integration", "assignee": "Alex", "category": "Sales", "priority": "Low", "status": "To Do", "planned_date": "2023-11-20", "est_time": 8.0, "act_time": 0.0},
-    ]
-
-if "shipments" not in st.session_state:
-    st.session_state.shipments = [
-        {"id": "SH-001", "date": "2023-11-12", "am": "Alex", "dest": "Amazon FBA", "skus": "SKU-A, SKU-B", "qty": 500, "status": "Shipped", "tracking": "1Z999222"},
-        {"id": "SH-002", "date": "2023-11-13", "am": "Alex", "dest": "Walmart WFS", "skus": "SKU-C", "qty": 120, "status": "Packing", "tracking": ""},
-        {"id": "SH-003", "date": "2023-11-14", "am": "Sarah", "dest": "TikTok Shop", "skus": "SKU-A", "qty": 50, "status": "New", "tracking": ""},
-    ]
-
-# --- GEMINI AI SETUP ---
-api_key = st.sidebar.text_input("🔑 Gemini API Key", type="password", placeholder="Paste Key for AI Features") if "authenticated" in st.session_state and st.session_state.authenticated else None
-if api_key and AI_AVAILABLE:
-    genai.configure(api_key=api_key)
-
-def ask_gemini(prompt, context=""):
-    if not AI_AVAILABLE: return "Library 'google.generativeai' not found."
-    if not api_key: return "Please enter API Key."
-    try:
-        model = genai.GenerativeModel('gemini-2.5-flash-preview-09-2025')
-        response = model.generate_content(f"You are Titan AI assistant. Context: {context}. Question: {prompt}")
-        return response.text
-    except Exception as e: return f"Error: {e}"
-
 # --- HELPER FUNCTIONS ---
+def safe_rerun():
+    time.sleep(0.1)
+    st.rerun()
+
 def get_efficiency_badge(task):
     if task["status"] == "Done":
         if task["act_time"] <= task["est_time"]: return '<span class="badge badge-green">Super Star</span>'
@@ -250,12 +297,12 @@ def get_efficiency_badge(task):
 def render_metric_card(icon, gradient, value, label, sub):
     st.markdown(f"""
     <div class="titan-card">
-        <div class="icon-box" style="background: {gradient}; color: white;">
+        <div style="width:48px; height:48px; border-radius:14px; display:flex; align-items:center; justify-content:center; font-size:24px; background:{gradient}; color:white; margin-bottom:15px; box-shadow:inset 0 0 0 1px rgba(255,255,255,0.1);">
             {icon}
         </div>
-        <div class="metric-value">{value}</div>
-        <div class="metric-label">{label}</div>
-        <div class="metric-sub">{sub}</div>
+        <div style="font-size:32px; font-weight:700; background:linear-gradient(135deg, #ffffff 0%, #a5b4fc 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; margin-bottom:5px;">{value}</div>
+        <div style="font-size:14px; color:rgba(255,255,255,0.7); font-weight:500; text-transform:uppercase;">{label}</div>
+        <div style="font-size:12px; color:rgba(255,255,255,0.5);">{sub}</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -269,7 +316,7 @@ def login():
         st.markdown("""
         <div class="login-glass">
             <h1 style="margin-bottom: 5px; background: linear-gradient(to right, #ec4899, #8b5cf6); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">TITAN CONTROL</h1>
-            <p style="color: rgba(255,255,255,0.7); margin-bottom: 30px;">Future Enterprise OS</p>
+            <p style="color: rgba(255,255,255,0.7); margin-bottom: 30px;">Secure Enterprise Login</p>
         </div>
         <br>
         """, unsafe_allow_html=True)
@@ -280,17 +327,16 @@ def login():
             submit = st.form_submit_button("ENTER SYSTEM", type="primary", use_container_width=True)
             
             if submit:
-                user = next((u for u in EMPLOYEES if u["username"] == username and u["password"] == password), None)
+                user = verify_user(username, password)
                 if user:
                     st.session_state.authenticated = True
                     st.session_state.user = user
                     st.success("Access Granted.")
-                    time.sleep(0.5)
                     safe_rerun()
                 else:
-                    st.error("Access Denied.")
+                    st.error("Invalid credentials.")
         
-        st.info("Demo Access: admin / 123 (CEO) OR alex / 123 (Employee)")
+        st.info("Default Admin: admin / 123")
 
 def logout_callback():
     st.session_state.authenticated = False
@@ -321,7 +367,7 @@ else:
     st.sidebar.markdown("---")
     
     if current_user['is_admin']:
-        options = ["Dashboard", "Master Registry", "My Desk", "3PL Logistics", "AI Assistant 🤖"]
+        options = ["Dashboard", "Team Management", "My Desk", "3PL Logistics", "AI Assistant 🤖"]
     else:
         options = ["My Desk", "3PL Logistics", "AI Assistant 🤖"]
         
@@ -330,35 +376,32 @@ else:
     st.sidebar.markdown("---")
     st.sidebar.button("LOGOUT", on_click=logout_callback)
 
-    # --- PAGES ---
-
-    # 1. ADMIN DASHBOARD
+    # --- PAGE: DASHBOARD ---
     if page == "Dashboard":
         col_head_1, col_head_2 = st.columns([3, 1])
         with col_head_1:
             st.markdown('<h1>Executive Overview</h1>', unsafe_allow_html=True)
-            st.markdown('<p style="color: rgba(255,255,255,0.7);">Live operational metrics.</p>', unsafe_allow_html=True)
         
-        # Logic
-        df_tasks = pd.DataFrame(st.session_state.tasks)
-        total_tasks = len(df_tasks)
-        done_tasks = len(df_tasks[df_tasks['status'] == 'Done'])
+        tasks = get_tasks()
+        shipments = get_shipments()
+        
+        total_tasks = len(tasks)
+        done_tasks = len([t for t in tasks if t['status'] == 'Done'])
         velocity = int((done_tasks / total_tasks) * 100) if total_tasks > 0 else 0
-        pending_ships = len([s for s in st.session_state.shipments if s['status'] == 'New'])
+        pending_ships = len([s for s in shipments if s['status'] == 'New'])
 
-        # Metrics
         c1, c2, c3, c4 = st.columns(4)
-        with c1: render_metric_card("📈", "linear-gradient(135deg, #3b82f6, #06b6d4)", f"{velocity}%", "Team Velocity", "+12% vs last week")
-        with c2: render_metric_card("⚡", "linear-gradient(135deg, #10b981, #34d399)", f"{total_tasks - done_tasks}", "Active Tasks", "In pipeline")
+        with c1: render_metric_card("📈", "linear-gradient(135deg, #3b82f6, #06b6d4)", f"{velocity}%", "Team Velocity", "Completion Rate")
+        with c2: render_metric_card("⚡", "linear-gradient(135deg, #10b981, #34d399)", f"{total_tasks - done_tasks}", "Active Tasks", "In Pipeline")
         with c3: render_metric_card("📦", "linear-gradient(135deg, #f59e0b, #fbbf24)", f"{pending_ships}", "Warehouse Queue", "Pending Orders")
         with c4: render_metric_card("💎", "linear-gradient(135deg, #8b5cf6, #d946ef)", "85%", "Efficiency", "On Track")
 
         st.markdown("<br>", unsafe_allow_html=True)
-
         col_main_1, col_main_2 = st.columns([2, 1])
+        
         with col_main_1:
             st.markdown('<h3>Recent Activity</h3>', unsafe_allow_html=True)
-            for task in st.session_state.tasks[:4]:
+            for task in tasks[:5]:
                 st.markdown(f"""
                 <div class="titan-card" style="padding: 16px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between;">
                     <div style="display: flex; align-items: center; gap: 15px;">
@@ -368,31 +411,64 @@ else:
                             <div style="color: rgba(255,255,255,0.5); font-size: 12px;">{task['assignee']}</div>
                         </div>
                     </div>
-                    <div style="font-family: monospace; color: rgba(255,255,255,0.7); font-size: 12px;">{task['act_time']}h logged</div>
+                    <div style="font-family: monospace; color: rgba(255,255,255,0.7); font-size: 12px;">{task['status']}</div>
                 </div>
                 """, unsafe_allow_html=True)
 
-        with col_main_2:
-            st.markdown('<h3>3PL Status</h3>', unsafe_allow_html=True)
-            for ship in st.session_state.shipments[:3]:
-                badge_cls = "badge-green" if ship['status'] == "Shipped" else "badge-purple" if ship['status'] == "New" else "badge-blue"
-                st.markdown(f"""
-                <div class="titan-card" style="padding: 16px; margin-bottom: 12px;">
-                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 5px;">
-                        <div style="font-weight: 600; font-size: 14px;">{ship['dest']}</div>
-                        <span class="badge {badge_cls}">{ship['status']}</span>
+    # --- PAGE: TEAM MANAGEMENT (ADMIN ONLY) ---
+    elif page == "Team Management":
+        st.markdown("<h1>Team Management</h1>", unsafe_allow_html=True)
+        
+        c1, c2 = st.columns([1, 2])
+        
+        with c1:
+            st.markdown("### Add New Employee")
+            with st.form("add_user_form"):
+                n_username = st.text_input("Username")
+                n_password = st.text_input("Password", type="password")
+                n_name = st.text_input("Full Name")
+                n_role = st.selectbox("Role", ["Account Manager", "Logistics Manager", "Warehouse Lead", "Intern"])
+                n_admin = st.checkbox("Grant Admin Rights")
+                
+                if st.form_submit_button("Create User", type="primary"):
+                    if create_user(n_username, n_password, n_name, n_role, n_admin):
+                        st.success(f"User {n_name} created!")
+                        safe_rerun()
+                    else:
+                        st.error("Username already exists!")
+
+        with c2:
+            st.markdown("### Employee Directory")
+            users_df = get_all_users()
+            for index, user in users_df.iterrows():
+                with st.container():
+                    st.markdown(f"""
+                    <div class="titan-card" style="padding: 15px; margin-bottom: 10px; display:flex; justify-content:space-between; align-items:center;">
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <div style="font-size:24px;">{user['avatar']}</div>
+                            <div>
+                                <div style="font-weight:bold;">{user['name']}</div>
+                                <div style="font-size:12px; opacity:0.7;">{user['role']}</div>
+                            </div>
+                        </div>
                     </div>
-                    <div style="font-size: 12px; color: rgba(255,255,255,0.6);">{ship['id']} • {ship['qty']} units</div>
-                </div>
-                """, unsafe_allow_html=True)
+                    """, unsafe_allow_html=True)
+                    if user['username'] != 'admin': # Protect main admin
+                        if st.button(f"Remove {user['username']}", key=f"del_{user['username']}"):
+                            delete_user(user['username'])
+                            st.success("Deleted.")
+                            safe_rerun()
 
-    # 2. MY DESK
+    # --- PAGE: MY DESK ---
     elif page == "My Desk":
         st.markdown(f"## 💻 My Desk")
         st.markdown(f"Good morning, **{current_user['name']}**.")
         
-        my_tasks = [t for t in st.session_state.tasks if current_user['is_admin'] or current_user['name'] in t['assignee']]
+        tasks = get_tasks()
+        # Filter: Show all for Admin, specific for Users
+        my_tasks = [t for t in tasks if current_user['is_admin'] or current_user['name'] == t['assignee']]
         
+        # --- Task Cards ---
         for task in my_tasks:
             with st.container():
                 st.markdown(f"""
@@ -412,62 +488,58 @@ else:
                 
                 c1, c2 = st.columns([1, 4])
                 with c1:
-                    new_status = st.selectbox("Status", ["To Do", "In Progress", "Done"], index=["To Do", "In Progress", "Done"].index(task['status']) if task['status'] in ["To Do", "In Progress", "Done"] else 0, key=f"s_{task['id']}", label_visibility="collapsed")
+                    current_status = task['status']
+                    new_status = st.selectbox("Status", ["To Do", "In Progress", "Done"], 
+                                            index=["To Do", "In Progress", "Done"].index(current_status) if current_status in ["To Do", "In Progress", "Done"] else 0, 
+                                            key=f"s_{task['id']}", label_visibility="collapsed")
                 with c2:
-                    if new_status != task['status']:
-                        task['status'] = new_status
+                    if new_status != current_status:
+                        update_task_status(task['id'], new_status)
+                        st.toast(f"Task updated to {new_status}")
                         safe_rerun()
                 st.markdown("<br>", unsafe_allow_html=True)
 
+        # --- Add New Task Form ---
         with st.expander("+ Add New Task", expanded=True):
             with st.form("new_task"):
                 c1, c2 = st.columns(2)
                 t_title = c1.text_input("Title")
-                all_emp_names = [e['name'] for e in EMPLOYEES]
-                default_idx = all_emp_names.index(current_user['name'])
-                t_assignee = c2.selectbox("Assignee", all_emp_names, index=default_idx)
+                
+                # Get real users for dropdown
+                users_df = get_all_users()
+                user_names = users_df['name'].tolist()
+                
+                # Default to current user index if found, else 0
+                try:
+                    default_idx = user_names.index(current_user['name'])
+                except ValueError:
+                    default_idx = 0
+                    
+                t_assignee = c2.selectbox("Assignee", user_names, index=default_idx)
                 
                 c3, c4 = st.columns(2)
                 t_cat = c3.selectbox("Category", ["Admin", "Sales", "Logistics", "Tech"])
                 t_est = c4.number_input("Est. Hours", 1.0)
                 
                 if st.form_submit_button("Create Task", type="primary"):
-                    st.session_state.tasks.append({
-                        "id": len(st.session_state.tasks)+1, 
-                        "title": t_title, "assignee": t_assignee, "category": t_cat, "priority": "Medium", "status": "To Do",
-                        "planned_date": str(datetime.date.today()), "est_time": t_est, "act_time": 0.0
-                    })
-                    st.success(f"Task Assigned!")
-                    time.sleep(1)
+                    add_task(t_title, t_assignee, t_cat, "Medium", datetime.date.today(), t_est)
+                    st.success(f"Task Assigned to {t_assignee}!")
                     safe_rerun()
 
-    # 3. MASTER REGISTRY
-    elif page == "Master Registry":
-        st.markdown("## 🗂 Master Registry")
-        st.dataframe(
-            pd.DataFrame(st.session_state.tasks),
-            use_container_width=True,
-            hide_index=True,
-            column_config={
-                "status": st.column_config.SelectboxColumn("Status", options=["To Do", "In Progress", "Done"]),
-                "act_time": st.column_config.ProgressColumn("Hours", min_value=0, max_value=10, format="%.1f")
-            }
-        )
-
-    # 4. 3PL LOGISTICS
+    # --- PAGE: 3PL LOGISTICS ---
     elif page == "3PL Logistics":
         st.markdown("## 📦 Warehouse Control")
         
         col_log_1, col_log_2 = st.columns([3, 1])
         with col_log_2:
             if st.button("+ New Shipment", type="primary"):
-                st.session_state.shipments.append({
-                    "id": f"SH-{len(st.session_state.shipments)+1:03d}", "date": str(datetime.date.today()),
-                    "am": current_user['name'], "dest": "Amazon FBA", "skus": "SKU-NEW", "qty": 0, "status": "New", "tracking": ""
-                })
+                new_id = f"SH-{int(time.time())}"[-6:] # Simple ID gen
+                add_shipment(f"SH-{new_id}", datetime.date.today(), current_user['name'], "Amazon FBA", "SKU-NEW", 100)
+                st.success("Draft Shipment Created")
                 safe_rerun()
 
-        for ship in st.session_state.shipments:
+        shipments = get_shipments()
+        for ship in shipments:
             st.markdown(f"""
             <div class="titan-card" style="margin-bottom: 15px; border-left: 4px solid {'#10b981' if ship['status']=='Shipped' else '#3b82f6'};">
                 <div style="display: flex; justify-content: space-between;">
@@ -482,19 +554,21 @@ else:
             </div>
             """, unsafe_allow_html=True)
             
-            c1, c2, c3 = st.columns([2, 1, 1])
-            with c1: st.caption(f"Items: {ship['skus']}")
-            with c2: 
+            c1, c2 = st.columns([1, 4])
+            with c1: 
                 if current_user['is_admin']:
-                    new_stat = st.selectbox("Status", ["New", "Packing", "Shipped"], index=["New", "Packing", "Shipped"].index(ship['status']) if ship['status'] in ["New", "Packing", "Shipped"] else 0, key=f"sh_{ship['id']}", label_visibility="collapsed")
-                    if new_stat != ship['status']:
-                        ship['status'] = new_stat
+                    curr_stat = ship['status']
+                    new_stat = st.selectbox("Status", ["New", "Packing", "Shipped"], 
+                                          index=["New", "Packing", "Shipped"].index(curr_stat) if curr_stat in ["New", "Packing", "Shipped"] else 0, 
+                                          key=f"sh_{ship['id']}", label_visibility="collapsed")
+                    if new_stat != curr_stat:
+                        update_shipment_status(ship['id'], new_stat)
                         safe_rerun()
                 else:
                     st.info(ship['status'])
             st.markdown("---")
 
-    # 5. AI ASSISTANT
+    # --- PAGE: AI ASSISTANT ---
     elif page == "AI Assistant 🤖":
         st.markdown("## 🤖 Titan AI Chat")
         
@@ -511,7 +585,9 @@ else:
                 if not api_key: st.error("Please enter API Key in sidebar")
                 else:
                     with st.spinner("Thinking..."):
-                        context = f"Tasks: {st.session_state.tasks}\nShipments: {st.session_state.shipments}"
+                        tasks = get_tasks()
+                        shipments = get_shipments()
+                        context = f"Tasks: {tasks}\nShipments: {shipments}"
                         resp = ask_gemini(prompt, context)
                         st.write(resp)
                         st.session_state.messages.append({"role": "assistant", "content": resp})
