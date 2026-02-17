@@ -38,7 +38,7 @@ def init_db():
                     is_admin BOOLEAN
                 )''')
     
-    # 2. Tasks (Updated with company & timer)
+    # 2. Tasks (Updated with rating)
     c.execute('''CREATE TABLE IF NOT EXISTS tasks (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     title TEXT,
@@ -48,15 +48,21 @@ def init_db():
                     priority TEXT,
                     status TEXT,
                     planned_date TEXT,
-                    timer_start TEXT, -- Stores timestamp when started
+                    timer_start TEXT,
                     act_time REAL,
-                    notes TEXT
+                    notes TEXT,
+                    rating INTEGER,    -- New: 1-5 Stars
+                    feedback TEXT      -- New: Manager feedback
                 )''')
     
-    # Ensure new columns exist if DB already created
+    # Migrations for existing DBs
     try: c.execute("ALTER TABLE tasks ADD COLUMN company TEXT")
     except: pass
     try: c.execute("ALTER TABLE tasks ADD COLUMN timer_start TEXT")
+    except: pass
+    try: c.execute("ALTER TABLE tasks ADD COLUMN rating INTEGER")
+    except: pass
+    try: c.execute("ALTER TABLE tasks ADD COLUMN feedback TEXT")
     except: pass
                 
     # 3. Shipments
@@ -79,9 +85,25 @@ def init_db():
                     timestamp TEXT
                 )''')
     
-    # 5. Companies (New)
+    # 5. Companies
     c.execute('''CREATE TABLE IF NOT EXISTS companies (
                     name TEXT PRIMARY KEY
+                )''')
+
+    # 6. Inventory (New)
+    c.execute('''CREATE TABLE IF NOT EXISTS inventory (
+                    sku TEXT PRIMARY KEY,
+                    name TEXT,
+                    stock INTEGER,
+                    location TEXT
+                )''')
+
+    # 7. SOPs (Standard Operating Procedures) (New)
+    c.execute('''CREATE TABLE IF NOT EXISTS sops (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    title TEXT,
+                    content TEXT,
+                    category TEXT
                 )''')
     
     # Seed Default Data
@@ -116,7 +138,16 @@ def init_db():
     # Default Companies
     c.execute("INSERT OR IGNORE INTO companies VALUES ('Internal')")
     c.execute("INSERT OR IGNORE INTO companies VALUES ('Client A')")
-    c.execute("INSERT OR IGNORE INTO companies VALUES ('Client B')")
+    
+    # Default Inventory
+    c.execute("INSERT OR IGNORE INTO inventory VALUES ('SKU-001', 'Wireless Mouse', 500, 'A1')")
+    c.execute("INSERT OR IGNORE INTO inventory VALUES ('SKU-002', 'Keyboard RGB', 120, 'B3')")
+
+    # Default SOP
+    c.execute("SELECT * FROM sops")
+    if not c.fetchone():
+        c.execute("INSERT INTO sops (title, content, category) VALUES (?, ?, ?)", 
+                 ('How to Pack Fragile Items', '1. Wrap in bubble wrap (2 layers).\n2. Use double-walled box.\n3. Add "Fragile" sticker.', 'Logistics'))
         
     conn.commit()
     conn.close()
@@ -215,6 +246,37 @@ def add_company(name):
     finally:
         conn.close()
 
+# --- INVENTORY FUNCTIONS (New) ---
+def get_inventory():
+    conn = get_db()
+    df = pd.read_sql("SELECT * FROM inventory", conn)
+    conn.close()
+    return df
+
+def add_inventory(sku, name, stock, location):
+    conn = get_db()
+    try:
+        conn.execute("INSERT INTO inventory VALUES (?, ?, ?, ?)", (sku, name, stock, location))
+        conn.commit()
+        return True
+    except:
+        return False
+    finally:
+        conn.close()
+
+# --- SOP FUNCTIONS (New) ---
+def get_sops():
+    conn = get_db()
+    df = pd.read_sql("SELECT * FROM sops", conn)
+    conn.close()
+    return df
+
+def add_sop(title, content, category):
+    conn = get_db()
+    conn.execute("INSERT INTO sops (title, content, category) VALUES (?, ?, ?)", (title, content, category))
+    conn.commit()
+    conn.close()
+
 # --- TASK FUNCTIONS ---
 def get_tasks():
     conn = get_db()
@@ -227,7 +289,6 @@ def get_tasks():
 
 def add_task(title, assignee, company, category):
     conn = get_db()
-    # est_time removed, timer_start is NULL initially, act_time 0.0
     conn.execute("INSERT INTO tasks (title, assignee, company, category, priority, status, planned_date, est_time, act_time) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                  (title, assignee, company, category, "Medium", "To Do", str(datetime.date.today()), 0.0, 0.0))
     conn.commit()
@@ -236,6 +297,12 @@ def add_task(title, assignee, company, category):
 def update_task(task_id, status, assignee, act_time):
     conn = get_db()
     conn.execute("UPDATE tasks SET status=?, assignee=?, act_time=? WHERE id=?", (status, assignee, act_time, task_id))
+    conn.commit()
+    conn.close()
+
+def rate_task(task_id, rating, feedback):
+    conn = get_db()
+    conn.execute("UPDATE tasks SET rating=?, feedback=? WHERE id=?", (rating, feedback, task_id))
     conn.commit()
     conn.close()
 
@@ -439,8 +506,9 @@ else:
 
     st.sidebar.markdown("---")
     
-    nav_opts = ["Dashboard", "My Desk", "3PL Logistics", "Team & Reports", "AI Assistant 🤖"]
-    # All employees have access to these, Role based hiding can be added inside pages if needed
+    # Nav
+    nav_opts = ["Dashboard", "My Desk", "3PL Logistics", "Team & Reports", "Inventory & SOPs", "AI Assistant 🤖"]
+    # Role-based hiding could happen here, but left open for collaboration
     
     page = st.sidebar.radio("NAVIGATION", nav_opts)
     
@@ -491,6 +559,27 @@ else:
     elif page == "My Desk":
         st.markdown("# 💻 My Desk")
         
+        # Personal KPI Card
+        my_tasks_all = [t for t in get_tasks() if t['assignee'] == user['name']]
+        completed_my = [t for t in my_tasks_all if t['status'] == 'Done']
+        avg_rating = 0
+        rated_tasks = [t for t in completed_my if t['rating']]
+        if rated_tasks:
+            avg_rating = sum([t['rating'] for t in rated_tasks]) / len(rated_tasks)
+        
+        st.markdown(f"""
+        <div class="titan-card" style="display:flex; justify-content:space-around; align-items:center;">
+            <div style="text-align:center;">
+                <div style="font-size:24px; font-weight:bold; color:#f472b6;">{avg_rating:.1f} ★</div>
+                <div style="font-size:11px; text-transform:uppercase; color:#a1a1aa;">Avg Quality Rating</div>
+            </div>
+            <div style="text-align:center;">
+                <div style="font-size:24px; font-weight:bold; color:#4ade80;">{len(completed_my)}</div>
+                <div style="font-size:11px; text-transform:uppercase; color:#a1a1aa;">Tasks Finished</div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        
         # Add Task
         with st.expander("➕ Create New Task", expanded=False):
             with st.form("new_task"):
@@ -511,8 +600,6 @@ else:
                 comp = c3.selectbox("Company", comps)
                 cat = c4.selectbox("Category", ["Admin", "Sales", "Logistics", "IT", "Research"])
                 
-                # Removed Est Time input as requested
-                
                 if st.form_submit_button("Create Task", type="primary"):
                     add_task(title, assignee, comp, cat)
                     st.success("Task Created")
@@ -520,24 +607,26 @@ else:
         
         # Task List
         tasks = get_tasks()
-        # Filter (optional: user['is_admin'] or t['assignee'] == user['name'])
-        # Current logic: Everyone sees tasks assigned to them OR if they are admin.
-        # "so everybody can assign new employee" implies somewhat shared visibility.
-        my_tasks = [t for t in tasks if user['is_admin'] or t['assignee'] == user['name'] or True] # Showing all tasks for collaboration
+        my_tasks = [t for t in tasks if user['is_admin'] or t['assignee'] == user['name'] or True] 
         
         for t in my_tasks:
             with st.container():
-                # Edit Mode for Task
+                # Task Row Layout
                 c_card, c_timer, c_edit = st.columns([5, 2, 1])
                 
                 with c_card:
                     timer_active = t['timer_start'] is not None
                     border_color = "#ec4899" if timer_active else ("#4ade80" if t['status']=='Done' else "rgba(255,255,255,0.1)")
                     
+                    # Rating Display
+                    rating_html = ""
+                    if t['rating']:
+                        rating_html = f"<span style='color:#fbbf24; margin-left:10px;'>{'★'*t['rating']}</span>"
+                    
                     st.markdown(f"""
                     <div class="titan-card" style="padding: 15px; margin-bottom: 5px; border: 1px solid {border_color};">
                         <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <div style="font-size:16px; font-weight:bold;">{t['title']}</div>
+                            <div style="font-size:16px; font-weight:bold;">{t['title']} {rating_html}</div>
                             <div style="font-size:11px; font-weight:bold; color:#a1a1aa; background:rgba(255,255,255,0.1); padding:2px 8px; border-radius:4px;">{t['company']}</div>
                         </div>
                         <div style="font-size:12px; color:#a1a1aa; margin-top:5px; display:flex; gap:10px;">
@@ -549,7 +638,6 @@ else:
                     """, unsafe_allow_html=True)
                 
                 with c_timer:
-                    # Timer Controls
                     if t['status'] != 'Done':
                         if t['timer_start']:
                             st.markdown(f"<div style='color:#ec4899; font-size:12px; text-align:center;'>Running...</div>", unsafe_allow_html=True)
@@ -561,41 +649,54 @@ else:
                             if st.button("▶ Start", key=f"start_{t['id']}", use_container_width=True):
                                 toggle_task_timer(t['id'])
                                 safe_rerun()
+                    else:
+                        # Rate Button for Admin
+                        if user['is_admin'] and not t['rating']:
+                            with st.popover("⭐ Rate"):
+                                rating = st.slider("Quality", 1, 5, 5, key=f"r_{t['id']}")
+                                feed = st.text_input("Feedback", key=f"f_{t['id']}")
+                                if st.button("Submit Rating", key=f"sr_{t['id']}"):
+                                    rate_task(t['id'], rating, feed)
+                                    st.success("Rated")
+                                    safe_rerun()
                 
-                # Edit Controls
                 with c_edit:
                     st.markdown(f"<div style='height:18px;'></div>", unsafe_allow_html=True)
                     with st.popover("✏️"):
-                        # Re-assign Feature
                         users = get_all_users()
                         user_list = users['name'].tolist()
                         try: curr_idx = user_list.index(t['assignee'])
                         except: curr_idx = 0
-                        
-                        n_assignee = st.selectbox("Re-Assign To", user_list, index=curr_idx, key=f"as_{t['id']}")
+                        n_assignee = st.selectbox("Re-Assign", user_list, index=curr_idx, key=f"as_{t['id']}")
                         n_stat = st.selectbox("Status", ["To Do", "In Progress", "Done"], index=["To Do", "In Progress", "Done"].index(t['status']), key=f"s_{t['id']}")
-                        n_time = st.number_input("Adjust Time (Hrs)", value=t['act_time'], key=f"t_{t['id']}")
+                        n_time = st.number_input("Time (Hrs)", value=t['act_time'], key=f"t_{t['id']}")
                         
-                        if st.button("Update Task", key=f"up_{t['id']}"):
+                        if st.button("Update", key=f"up_{t['id']}"):
                             update_task(t['id'], n_stat, n_assignee, n_time)
-                            st.success("Updated")
                             safe_rerun()
 
     # --- PAGE: 3PL LOGISTICS ---
     elif page == "3PL Logistics":
         st.markdown("# 📦 Warehouse Control")
         
-        # Create
         with st.expander("➕ Create Shipment Request"):
             with st.form("ship"):
                 c1, c2 = st.columns(2)
                 dest = c1.selectbox("Destination", ["Amazon FBA", "Walmart WFS", "TikTok Shop"])
-                skus = c2.text_input("SKUs")
+                
+                # SKU Selector from Inventory
+                inv_df = get_inventory()
+                if not inv_df.empty:
+                    skus_list = inv_df['sku'].tolist()
+                    sel_sku = c2.selectbox("SKU", skus_list)
+                else:
+                    sel_sku = c2.text_input("SKUs (Manual)")
+                    
                 qty = st.number_input("Quantity", 1)
                 
                 if st.form_submit_button("Submit Request", type="primary"):
                     sid = f"SH-{int(time.time())}"[-6:]
-                    add_shipment(f"SH-{sid}", datetime.date.today(), user['name'], dest, skus, qty)
+                    add_shipment(f"SH-{sid}", datetime.date.today(), user['name'], dest, sel_sku, qty)
                     st.success("Created")
                     safe_rerun()
         
@@ -617,7 +718,6 @@ else:
             </div>
             """, unsafe_allow_html=True)
             
-            # Inline Editing
             if user['is_admin']:
                 with st.expander(f"Edit {s['id']}", expanded=False):
                     c1, c2, c3 = st.columns(3)
@@ -632,7 +732,7 @@ else:
                         st.success("Updated")
                         safe_rerun()
 
-    # --- PAGE: TEAM & REPORTS (ADMIN) ---
+    # --- PAGE: TEAM & REPORTS ---
     elif page == "Team & Reports":
         st.markdown("# 👥 Team & Reports")
         
@@ -677,17 +777,55 @@ else:
             st.markdown("### 💾 Export Data")
             c1, c2 = st.columns(2)
             
-            # Tasks CSV
             tasks_df = pd.DataFrame(get_tasks())
             if not tasks_df.empty:
                 csv = tasks_df.to_csv(index=False)
                 c1.download_button("Download Tasks CSV", csv, "tasks.csv", "text/csv")
             
-            # Logs CSV
             logs_df = get_work_logs()
             if not logs_df.empty:
                 csv_logs = logs_df.to_csv(index=False)
                 c2.download_button("Download Work Logs CSV", csv_logs, "work_logs.csv", "text/csv")
+
+    # --- PAGE: INVENTORY & SOPS (New) ---
+    elif page == "Inventory & SOPs":
+        st.markdown("# 📚 Knowledge & Stock")
+        
+        tab1, tab2 = st.tabs(["Inventory Manager", "SOP Library"])
+        
+        with tab1:
+            c1, c2 = st.columns([1, 2])
+            with c1:
+                st.markdown("### Add Item")
+                with st.form("add_inv"):
+                    sku = st.text_input("SKU")
+                    name = st.text_input("Product Name")
+                    stock = st.number_input("Stock", 0)
+                    loc = st.text_input("Location")
+                    if st.form_submit_button("Add Stock"):
+                        add_inventory(sku, name, stock, loc)
+                        st.success("Added")
+                        safe_rerun()
+            with c2:
+                st.dataframe(get_inventory(), use_container_width=True)
+                
+        with tab2:
+            st.markdown("### 📖 Standard Operating Procedures")
+            if user['is_admin']:
+                with st.expander("➕ Add SOP"):
+                    with st.form("sop"):
+                        title = st.text_input("Title")
+                        cat = st.selectbox("Category", ["Logistics", "Sales", "HR"])
+                        content = st.text_area("Content")
+                        if st.form_submit_button("Publish SOP"):
+                            add_sop(title, content, cat)
+                            st.success("Published")
+                            safe_rerun()
+            
+            sops = get_sops()
+            for index, row in sops.iterrows():
+                with st.expander(f"📘 {row['title']} ({row['category']})"):
+                    st.write(row['content'])
 
     # --- PAGE: AI ASSISTANT ---
     elif page == "AI Assistant 🤖":
