@@ -38,7 +38,7 @@ def init_db():
                     is_admin BOOLEAN
                 )''')
     
-    # 2. Tasks (Removed est_time)
+    # 2. Tasks
     c.execute('''CREATE TABLE IF NOT EXISTS tasks (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     title TEXT,
@@ -55,7 +55,7 @@ def init_db():
                     feedback TEXT
                 )''')
     
-    # DB Migration: Ensure columns exist if DB was created previously
+    # DB Migration
     try: c.execute("ALTER TABLE tasks ADD COLUMN company TEXT")
     except: pass
     try: c.execute("ALTER TABLE tasks ADD COLUMN timer_start TEXT")
@@ -107,42 +107,35 @@ def init_db():
                 )''')
     
     # Seed Default Data
-    # Admin / CEO
     c.execute("SELECT * FROM users WHERE username = 'admin'")
     if not c.fetchone():
         pwd_hash = hashlib.sha256("123".encode()).hexdigest()
         c.execute("INSERT INTO users VALUES (?, ?, ?, ?, ?, ?)", 
                   ('admin', pwd_hash, 'Big Boss', 'CEO', '🦁', True))
     
-    # Account Manager
     c.execute("SELECT * FROM users WHERE username = 'alex'")
     if not c.fetchone():
         pwd_hash = hashlib.sha256("123".encode()).hexdigest()
         c.execute("INSERT INTO users VALUES (?, ?, ?, ?, ?, ?)", 
                   ('alex', pwd_hash, 'Alex', 'Account Manager', '👨‍💻', False))
 
-    # Researcher
     c.execute("SELECT * FROM users WHERE username = 'sarah'")
     if not c.fetchone():
         pwd_hash = hashlib.sha256("123".encode()).hexdigest()
         c.execute("INSERT INTO users VALUES (?, ?, ?, ?, ?, ?)", 
                   ('sarah', pwd_hash, 'Sarah', 'Researcher', '🔎', False))
 
-    # Warehouse Labour
     c.execute("SELECT * FROM users WHERE username = 'mike'")
     if not c.fetchone():
         pwd_hash = hashlib.sha256("123".encode()).hexdigest()
         c.execute("INSERT INTO users VALUES (?, ?, ?, ?, ?, ?)", 
                   ('mike', pwd_hash, 'Mike', 'Warehouse Labour', '📦', False))
     
-    # Default Companies
+    # Default Companies & Inventory
     c.execute("INSERT OR IGNORE INTO companies VALUES ('Internal')")
     c.execute("INSERT OR IGNORE INTO companies VALUES ('Client A')")
-    
-    # Default Inventory
     c.execute("INSERT OR IGNORE INTO inventory VALUES ('SKU-001', 'Wireless Mouse', 500, 'A1')")
     
-    # Default SOP
     c.execute("SELECT * FROM sops")
     if not c.fetchone():
         c.execute("INSERT INTO sops (title, content, category) VALUES (?, ?, ?)", 
@@ -227,7 +220,7 @@ def get_work_logs():
     conn.close()
     return df
 
-# --- COMPANY FUNCTIONS ---
+# --- COMPANY & INVENTORY FUNCTIONS ---
 def get_companies():
     conn = get_db()
     df = pd.read_sql("SELECT name FROM companies", conn)
@@ -240,12 +233,9 @@ def add_company(name):
         conn.execute("INSERT INTO companies VALUES (?)", (name,))
         conn.commit()
         return True
-    except:
-        return False
-    finally:
-        conn.close()
+    except: return False
+    finally: conn.close()
 
-# --- INVENTORY FUNCTIONS ---
 def get_inventory():
     conn = get_db()
     df = pd.read_sql("SELECT * FROM inventory", conn)
@@ -258,12 +248,9 @@ def add_inventory(sku, name, stock, location):
         conn.execute("INSERT INTO inventory VALUES (?, ?, ?, ?)", (sku, name, stock, location))
         conn.commit()
         return True
-    except:
-        return False
-    finally:
-        conn.close()
+    except: return False
+    finally: conn.close()
 
-# --- SOP FUNCTIONS ---
 def get_sops():
     conn = get_db()
     df = pd.read_sql("SELECT * FROM sops", conn)
@@ -288,7 +275,6 @@ def get_tasks():
 
 def add_task(title, assignee, company, category):
     conn = get_db()
-    # Corrected INSERT to remove est_time
     conn.execute("INSERT INTO tasks (title, assignee, company, category, priority, status, planned_date, act_time) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                  (title, assignee, company, category, "Medium", "To Do", str(datetime.date.today()), 0.0))
     conn.commit()
@@ -316,18 +302,16 @@ def toggle_task_timer(task_id):
         start_ts, current_act = row
         current_act = current_act if current_act else 0.0
         
-        if start_ts: # Stop Timer
+        if start_ts: # Stop
             start_dt = datetime.datetime.strptime(start_ts, "%Y-%m-%d %H:%M:%S")
-            now = datetime.datetime.now()
-            diff_hours = (now - start_dt).total_seconds() / 3600.0
+            diff_hours = (datetime.datetime.now() - start_dt).total_seconds() / 3600.0
             new_act = current_act + diff_hours
             c.execute("UPDATE tasks SET timer_start=NULL, act_time=?, status='Done' WHERE id=?", (new_act, task_id))
             st.toast(f"Timer Stopped. Added {diff_hours:.2f} hours.")
-        else: # Start Timer
+        else: # Start
             now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             c.execute("UPDATE tasks SET timer_start=?, status='In Progress' WHERE id=?", (now_str, task_id))
             st.toast("Timer Started!")
-            
     conn.commit()
     conn.close()
 
@@ -431,12 +415,29 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- APP LOGIC ---
+# --- HELPER FUNCTIONS ---
 def safe_rerun():
     time.sleep(0.1)
     st.rerun()
 
-# AUTH
+def get_efficiency_badge(task):
+    if task["status"] == "Done":
+        return '<span class="badge" style="background:#10b98120; color:#4ade80;">Done</span>'
+    return '<span class="badge" style="background:#3b82f620; color:#60a5fa;">Active</span>'
+
+def render_metric_card(icon, gradient, value, label, sub):
+    st.markdown(f"""
+    <div class="titan-card">
+        <div style="width:48px; height:48px; border-radius:14px; display:flex; align-items:center; justify-content:center; font-size:24px; background:{gradient}; color:white; margin-bottom:15px; box-shadow:inset 0 0 0 1px rgba(255,255,255,0.1);">
+            {icon}
+        </div>
+        <div style="font-size:32px; font-weight:700; background:linear-gradient(135deg, #ffffff 0%, #a5b4fc 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; margin-bottom:5px;">{value}</div>
+        <div style="font-size:14px; color:rgba(255,255,255,0.7); font-weight:500; text-transform:uppercase;">{label}</div>
+        <div style="font-size:12px; color:rgba(255,255,255,0.5);">{sub}</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+# --- AUTHENTICATION FLOW ---
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
 
@@ -473,7 +474,6 @@ else:
     # --- SIDEBAR ---
     st.sidebar.markdown("<h2>TITAN OS</h2>", unsafe_allow_html=True)
     
-    # User Profile Card
     st.sidebar.markdown(f"""
     <div style="background: rgba(255,255,255,0.05); border-radius: 12px; padding: 15px; border: 1px solid rgba(255,255,255,0.1);">
         <div style="display:flex; align-items:center; gap:10px;">
@@ -486,7 +486,7 @@ else:
     </div>
     """, unsafe_allow_html=True)
 
-    # Time Clock Widget
+    # Time Clock
     st.sidebar.markdown("### ⏱ Time Clock")
     last_event = get_last_work_event(user['username'])
     is_working = last_event and last_event[0] == 'CLOCK_IN'
@@ -505,10 +505,7 @@ else:
             safe_rerun()
 
     st.sidebar.markdown("---")
-    
-    # Nav
     nav_opts = ["Dashboard", "My Desk", "3PL Logistics", "Team & Reports", "Inventory & SOPs", "AI Assistant 🤖"]
-    
     page = st.sidebar.radio("NAVIGATION", nav_opts)
     
     st.sidebar.markdown("---")
@@ -520,51 +517,79 @@ else:
     if page == "Dashboard":
         st.markdown("# Executive Overview")
         
-        # Metrics
         tasks = get_tasks()
-        active = [t for t in tasks if t['status'] != 'Done']
-        completed = len(tasks) - len(active)
+        df_tasks = pd.DataFrame(tasks)
         
+        # Key Metrics
+        total = len(tasks)
+        in_progress = len([t for t in tasks if t['status'] == 'In Progress'])
+        todo = len([t for t in tasks if t['status'] == 'To Do'])
+        done = len([t for t in tasks if t['status'] == 'Done'])
+        
+        completion_rate = int((done / total * 100)) if total > 0 else 0
+
         c1, c2, c3, c4 = st.columns(4)
-        with c1: 
-            st.markdown(f"""<div class="titan-card">
-            <div style="color:#a1a1aa; font-size:12px; text-transform:uppercase;">Active Tasks</div>
-            <div style="font-size:32px; font-weight:bold; color:white;">{len(active)}</div>
-            </div>""", unsafe_allow_html=True)
-        with c2:
-             st.markdown(f"""<div class="titan-card">
-            <div style="color:#a1a1aa; font-size:12px; text-transform:uppercase;">Completed</div>
-            <div style="font-size:32px; font-weight:bold; color:#4ade80;">{completed}</div>
-            </div>""", unsafe_allow_html=True)
+        with c1: render_metric_card("⚡", "linear-gradient(135deg, #3b82f6, #06b6d4)", str(total), "Total Tasks", "All Time")
+        with c2: render_metric_card("🔥", "linear-gradient(135deg, #f59e0b, #fbbf24)", str(in_progress), "In Progress", "Happening Now")
+        with c3: render_metric_card("📋", "linear-gradient(135deg, #8b5cf6, #d946ef)", str(todo), "To Do", "Backlog")
+        with c4: render_metric_card("✅", "linear-gradient(135deg, #10b981, #34d399)", f"{completion_rate}%", "Completion", "Efficiency")
+
+        st.markdown("<br>", unsafe_allow_html=True)
         
-        # Live Attendance (Admin View)
-        st.markdown("### 🟢 Live Attendance")
-        workers = get_live_workers()
-        if workers:
-            cols = st.columns(4)
-            for i, w in enumerate(workers):
-                with cols[i % 4]:
+        # Row 2: Live Operations & Charts
+        c_left, c_right = st.columns([2, 1])
+        
+        with c_left:
+            st.markdown("### 🚧 Ongoing Operations (Real-Time)")
+            if in_progress > 0:
+                active_tasks = [t for t in tasks if t['status'] == 'In Progress']
+                for t in active_tasks:
+                    is_running = t['timer_start'] is not None
+                    status_icon = "⏳" if is_running else "⏸️"
+                    border_color = "#f59e0b" if is_running else "rgba(255,255,255,0.1)"
+                    
                     st.markdown(f"""
-                    <div class="titan-card" style="border-left: 3px solid #4ade80; padding: 15px;">
-                        <div style="font-weight:bold;">{w['name']}</div>
-                        <div style="font-size:12px; color:#a1a1aa;">{w['role']}</div>
-                        <div style="font-size:11px; color:#4ade80;">Online since {w['since'][11:16]}</div>
+                    <div class="titan-card" style="padding: 15px; border-left: 4px solid {border_color}; margin-bottom: 10px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <div style="font-weight:bold; font-size:16px;">{status_icon} {t['title']}</div>
+                            <div style="font-size:12px; color:#a1a1aa;">{t['assignee']}</div>
+                        </div>
+                        <div style="font-size:12px; color:rgba(255,255,255,0.6); margin-top:5px;">
+                            {t['company']} • {t['category']} • {t['act_time']:.2f}h logged
+                        </div>
                     </div>
                     """, unsafe_allow_html=True)
-        else:
-            st.info("No active workers at the moment.")
+            else:
+                st.info("No active tasks. The team is either clear or idle.")
+
+        with c_right:
+            st.markdown("### 📊 Task Status")
+            if not df_tasks.empty:
+                status_counts = df_tasks['status'].value_counts()
+                st.bar_chart(status_counts, color="#3b82f6")
+            
+            st.markdown("### 👥 Live Attendance")
+            workers = get_live_workers()
+            if workers:
+                for w in workers:
+                    st.markdown(f"""
+                    <div style="background:rgba(16, 185, 129, 0.1); border:1px solid rgba(16, 185, 129, 0.3); padding:10px; border-radius:10px; margin-bottom:8px;">
+                        <div style="font-weight:bold; font-size:13px;">🟢 {w['name']}</div>
+                        <div style="font-size:10px; opacity:0.7;">Online since {w['since'][11:16]}</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+            else:
+                st.caption("No active shifts.")
 
     # --- PAGE: MY DESK ---
     elif page == "My Desk":
         st.markdown("# 💻 My Desk")
         
-        # Personal KPI Card
         my_tasks_all = [t for t in get_tasks() if t['assignee'] == user['name']]
         completed_my = [t for t in my_tasks_all if t['status'] == 'Done']
         avg_rating = 0
-        rated_tasks = [t for t in completed_my if t['rating']]
-        if rated_tasks:
-            avg_rating = sum([t['rating'] for t in rated_tasks]) / len(rated_tasks)
+        rated = [t for t in completed_my if t['rating']]
+        if rated: avg_rating = sum([t['rating'] for t in rated]) / len(rated)
         
         st.markdown(f"""
         <div class="titan-card" style="display:flex; justify-content:space-around; align-items:center;">
@@ -579,13 +604,11 @@ else:
         </div>
         """, unsafe_allow_html=True)
         
-        # Add Task
         with st.expander("➕ Create New Task", expanded=False):
             with st.form("new_task"):
                 c1, c2 = st.columns(2)
                 title = c1.text_input("Task Title")
                 
-                # Assignee Dropdown
                 users = get_all_users()
                 names = users['name'].tolist()
                 try: def_idx = names.index(user['name'])
@@ -593,7 +616,6 @@ else:
                 assignee = c2.selectbox("Assign To", names, index=def_idx)
                 
                 c3, c4 = st.columns(2)
-                # Companies Dropdown
                 comps = get_companies()
                 if not comps: comps = ["Internal"]
                 comp = c3.selectbox("Company", comps)
@@ -604,23 +626,17 @@ else:
                     st.success("Task Created")
                     safe_rerun()
         
-        # Task List
         tasks = get_tasks()
         my_tasks = [t for t in tasks if user['is_admin'] or t['assignee'] == user['name'] or True] 
         
         for t in my_tasks:
             with st.container():
-                # Task Row Layout
                 c_card, c_timer, c_edit = st.columns([5, 2, 1])
                 
                 with c_card:
                     timer_active = t['timer_start'] is not None
                     border_color = "#ec4899" if timer_active else ("#4ade80" if t['status']=='Done' else "rgba(255,255,255,0.1)")
-                    
-                    # Rating Display
-                    rating_html = ""
-                    if t['rating']:
-                        rating_html = f"<span style='color:#fbbf24; margin-left:10px;'>{'★'*t['rating']}</span>"
+                    rating_html = f"<span style='color:#fbbf24; margin-left:10px;'>{'★'*t['rating']}</span>" if t['rating'] else ""
                     
                     st.markdown(f"""
                     <div class="titan-card" style="padding: 15px; margin-bottom: 5px; border: 1px solid {border_color};">
@@ -649,7 +665,6 @@ else:
                                 toggle_task_timer(t['id'])
                                 safe_rerun()
                     else:
-                        # Rate Button for Admin
                         if user['is_admin'] and not t['rating']:
                             with st.popover("⭐ Rate"):
                                 rating = st.slider("Quality", 1, 5, 5, key=f"r_{t['id']}")
@@ -669,7 +684,6 @@ else:
                         n_assignee = st.selectbox("Re-Assign", user_list, index=curr_idx, key=f"as_{t['id']}")
                         n_stat = st.selectbox("Status", ["To Do", "In Progress", "Done"], index=["To Do", "In Progress", "Done"].index(t['status']), key=f"s_{t['id']}")
                         n_time = st.number_input("Time (Hrs)", value=t['act_time'], key=f"t_{t['id']}")
-                        
                         if st.button("Update", key=f"up_{t['id']}"):
                             update_task(t['id'], n_stat, n_assignee, n_time)
                             safe_rerun()
@@ -682,15 +696,11 @@ else:
             with st.form("ship"):
                 c1, c2 = st.columns(2)
                 dest = c1.selectbox("Destination", ["Amazon FBA", "Walmart WFS", "TikTok Shop"])
-                
-                # SKU Selector from Inventory
                 inv_df = get_inventory()
                 if not inv_df.empty:
                     skus_list = inv_df['sku'].tolist()
                     sel_sku = c2.selectbox("SKU", skus_list)
-                else:
-                    sel_sku = c2.text_input("SKUs (Manual)")
-                    
+                else: sel_sku = c2.text_input("SKUs (Manual)")
                 qty = st.number_input("Quantity", 1)
                 
                 if st.form_submit_button("Submit Request", type="primary"):
@@ -699,7 +709,6 @@ else:
                     st.success("Created")
                     safe_rerun()
         
-        # List
         ships = get_shipments()
         for s in ships:
             st.markdown(f"""
@@ -725,7 +734,6 @@ else:
                     n_stat = c3.selectbox("Status", ["New", "Packing", "Shipped"], 
                                          index=["New", "Packing", "Shipped"].index(s['status']) if s['status'] in ["New", "Packing", "Shipped"] else 0,
                                          key=f"st_{s['id']}")
-                    
                     if st.button("Save Changes", key=f"sv_{s['id']}"):
                         update_shipment_details(s['id'], n_dest, s['skus'], n_qty, n_stat)
                         st.success("Updated")
@@ -734,7 +742,6 @@ else:
     # --- PAGE: TEAM & REPORTS ---
     elif page == "Team & Reports":
         st.markdown("# 👥 Team & Reports")
-        
         tab1, tab2, tab3, tab4 = st.tabs(["Manage Employees", "Manage Companies", "Work Logs", "Data Export"])
         
         with tab1:
@@ -750,8 +757,7 @@ else:
                         create_user(nu, np, nn, nr, False)
                         st.success("User Added")
                         safe_rerun()
-            with c2:
-                st.dataframe(get_all_users()[['name', 'role', 'username']], use_container_width=True)
+            with c2: st.dataframe(get_all_users()[['name', 'role', 'username']], use_container_width=True)
         
         with tab2:
             st.markdown("### 🏢 Companies")
@@ -764,23 +770,19 @@ else:
                             st.success("Added")
                             safe_rerun()
                         else: st.error("Exists or Error")
-            with c2:
-                st.dataframe(pd.DataFrame(get_companies(), columns=["Company Name"]), use_container_width=True)
+            with c2: st.dataframe(pd.DataFrame(get_companies(), columns=["Company Name"]), use_container_width=True)
 
         with tab3:
             st.markdown("### 🕒 Employee Time Logs")
-            logs = get_work_logs()
-            st.dataframe(logs, use_container_width=True)
+            st.dataframe(get_work_logs(), use_container_width=True)
         
         with tab4:
             st.markdown("### 💾 Export Data")
             c1, c2 = st.columns(2)
-            
             tasks_df = pd.DataFrame(get_tasks())
             if not tasks_df.empty:
                 csv = tasks_df.to_csv(index=False)
                 c1.download_button("Download Tasks CSV", csv, "tasks.csv", "text/csv")
-            
             logs_df = get_work_logs()
             if not logs_df.empty:
                 csv_logs = logs_df.to_csv(index=False)
@@ -789,7 +791,6 @@ else:
     # --- PAGE: INVENTORY & SOPS ---
     elif page == "Inventory & SOPs":
         st.markdown("# 📚 Knowledge & Stock")
-        
         tab1, tab2 = st.tabs(["Inventory Manager", "SOP Library"])
         
         with tab1:
@@ -805,8 +806,7 @@ else:
                         add_inventory(sku, name, stock, loc)
                         st.success("Added")
                         safe_rerun()
-            with c2:
-                st.dataframe(get_inventory(), use_container_width=True)
+            with c2: st.dataframe(get_inventory(), use_container_width=True)
                 
         with tab2:
             st.markdown("### 📖 Standard Operating Procedures")
@@ -820,7 +820,6 @@ else:
                             add_sop(title, content, cat)
                             st.success("Published")
                             safe_rerun()
-            
             sops = get_sops()
             for index, row in sops.iterrows():
                 with st.expander(f"📘 {row['title']} ({row['category']})"):
@@ -830,14 +829,11 @@ else:
     elif page == "AI Assistant 🤖":
         st.markdown("# 🤖 Titan AI")
         if "messages" not in st.session_state: st.session_state.messages = []
-        
         for m in st.session_state.messages:
             with st.chat_message(m["role"]): st.write(m["content"])
-            
         if p := st.chat_input("Ask about tasks, inventory, or employees..."):
             st.session_state.messages.append({"role": "user", "content": p})
             with st.chat_message("user"): st.write(p)
-            
             with st.chat_message("assistant"):
                 if not api_key: st.error("API Key Required")
                 else:
