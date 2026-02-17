@@ -38,7 +38,7 @@ def init_db():
                     is_admin BOOLEAN
                 )''')
     
-    # 2. Tasks (Updated with rating)
+    # 2. Tasks (Removed est_time)
     c.execute('''CREATE TABLE IF NOT EXISTS tasks (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     title TEXT,
@@ -51,11 +51,11 @@ def init_db():
                     timer_start TEXT,
                     act_time REAL,
                     notes TEXT,
-                    rating INTEGER,    -- New: 1-5 Stars
-                    feedback TEXT      -- New: Manager feedback
+                    rating INTEGER,
+                    feedback TEXT
                 )''')
     
-    # Migrations for existing DBs
+    # DB Migration: Ensure columns exist if DB was created previously
     try: c.execute("ALTER TABLE tasks ADD COLUMN company TEXT")
     except: pass
     try: c.execute("ALTER TABLE tasks ADD COLUMN timer_start TEXT")
@@ -90,7 +90,7 @@ def init_db():
                     name TEXT PRIMARY KEY
                 )''')
 
-    # 6. Inventory (New)
+    # 6. Inventory
     c.execute('''CREATE TABLE IF NOT EXISTS inventory (
                     sku TEXT PRIMARY KEY,
                     name TEXT,
@@ -98,7 +98,7 @@ def init_db():
                     location TEXT
                 )''')
 
-    # 7. SOPs (Standard Operating Procedures) (New)
+    # 7. SOPs
     c.execute('''CREATE TABLE IF NOT EXISTS sops (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     title TEXT,
@@ -141,13 +141,12 @@ def init_db():
     
     # Default Inventory
     c.execute("INSERT OR IGNORE INTO inventory VALUES ('SKU-001', 'Wireless Mouse', 500, 'A1')")
-    c.execute("INSERT OR IGNORE INTO inventory VALUES ('SKU-002', 'Keyboard RGB', 120, 'B3')")
-
+    
     # Default SOP
     c.execute("SELECT * FROM sops")
     if not c.fetchone():
         c.execute("INSERT INTO sops (title, content, category) VALUES (?, ?, ?)", 
-                 ('How to Pack Fragile Items', '1. Wrap in bubble wrap (2 layers).\n2. Use double-walled box.\n3. Add "Fragile" sticker.', 'Logistics'))
+                 ('How to Pack Fragile Items', '1. Wrap in bubble wrap (2 layers).\n2. Use double-walled box.', 'Logistics'))
         
     conn.commit()
     conn.close()
@@ -246,7 +245,7 @@ def add_company(name):
     finally:
         conn.close()
 
-# --- INVENTORY FUNCTIONS (New) ---
+# --- INVENTORY FUNCTIONS ---
 def get_inventory():
     conn = get_db()
     df = pd.read_sql("SELECT * FROM inventory", conn)
@@ -264,7 +263,7 @@ def add_inventory(sku, name, stock, location):
     finally:
         conn.close()
 
-# --- SOP FUNCTIONS (New) ---
+# --- SOP FUNCTIONS ---
 def get_sops():
     conn = get_db()
     df = pd.read_sql("SELECT * FROM sops", conn)
@@ -289,8 +288,9 @@ def get_tasks():
 
 def add_task(title, assignee, company, category):
     conn = get_db()
-    conn.execute("INSERT INTO tasks (title, assignee, company, category, priority, status, planned_date, est_time, act_time) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                 (title, assignee, company, category, "Medium", "To Do", str(datetime.date.today()), 0.0, 0.0))
+    # Corrected INSERT to remove est_time
+    conn.execute("INSERT INTO tasks (title, assignee, company, category, priority, status, planned_date, act_time) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                 (title, assignee, company, category, "Medium", "To Do", str(datetime.date.today()), 0.0))
     conn.commit()
     conn.close()
 
@@ -508,7 +508,6 @@ else:
     
     # Nav
     nav_opts = ["Dashboard", "My Desk", "3PL Logistics", "Team & Reports", "Inventory & SOPs", "AI Assistant 🤖"]
-    # Role-based hiding could happen here, but left open for collaboration
     
     page = st.sidebar.radio("NAVIGATION", nav_opts)
     
@@ -787,7 +786,7 @@ else:
                 csv_logs = logs_df.to_csv(index=False)
                 c2.download_button("Download Work Logs CSV", csv_logs, "work_logs.csv", "text/csv")
 
-    # --- PAGE: INVENTORY & SOPS (New) ---
+    # --- PAGE: INVENTORY & SOPS ---
     elif page == "Inventory & SOPs":
         st.markdown("# 📚 Knowledge & Stock")
         
