@@ -427,50 +427,61 @@ st.markdown("""
         background: transparent;
         gap: 8px; 
         width: 100%;
+        display: flex;
+        flex-direction: column;
     }
 
     /* Individual Navigation Items (Tiles) */
     [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] label {
-        background: rgba(255, 255, 255, 0.05);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 12px;
-        padding: 12px 16px;
-        width: 100%;
-        display: flex;
-        align-items: center;
-        justify-content: flex-start;
-        cursor: pointer;
-        transition: all 0.2s ease-in-out;
+        background: rgba(255, 255, 255, 0.05) !important;
+        border: 1px solid rgba(255, 255, 255, 0.08) !important;
+        border-radius: 12px !important;
+        padding: 14px 16px !important;
+        width: 100% !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: flex-start !important;
+        cursor: pointer !important;
+        transition: all 0.2s ease-in-out !important;
         margin: 0 !important;
+        box-sizing: border-box !important;
     }
 
     /* Hover State */
     [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] label:hover {
-        background: rgba(255, 255, 255, 0.1);
-        border-color: rgba(255, 255, 255, 0.2);
+        background: rgba(255, 255, 255, 0.1) !important;
+        border-color: rgba(255, 255, 255, 0.2) !important;
         transform: translateX(4px);
     }
 
     /* Selected State (Neon Glow) */
     [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] label:has(input:checked) {
-        background: linear-gradient(90deg, rgba(236, 72, 153, 0.15), rgba(139, 92, 246, 0.15));
-        border: 1px solid #ec4899;
-        box-shadow: 0 0 12px rgba(236, 72, 153, 0.2);
+        background: linear-gradient(90deg, rgba(236, 72, 153, 0.15), rgba(139, 92, 246, 0.15)) !important;
+        border: 1px solid #ec4899 !important;
+        box-shadow: 0 0 15px rgba(236, 72, 153, 0.25) !important;
     }
 
     /* Text Styling */
     [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] label p {
-        color: #a1a1aa;
-        font-size: 15px;
-        font-weight: 500;
-        margin: 0;
-        width: 100%;
+        color: #a1a1aa !important;
+        font-size: 15px !important;
+        font-weight: 500 !important;
+        margin: 0 !important;
+        width: 100% !important;
     }
 
     /* Selected Text Color */
     [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] label:has(input:checked) p {
         color: #ffffff !important;
-        font-weight: 700;
+        font-weight: 700 !important;
+    }
+
+    /* --- DASHBOARD BUTTONS AS TILES --- */
+    
+    /* Target the metrics buttons specifically */
+    div.stButton button[kind="primary"] {
+         /* General Styling is handled by global button style, 
+            but for Dashboard we need specific overrides if we want them distinct */
     }
 
     /* --- OTHER UI ELEMENTS --- */
@@ -511,7 +522,7 @@ st.markdown("""
         box-shadow: 0 0 10px rgba(16, 185, 129, 0.1);
     }
 
-    /* Buttons */
+    /* Global Buttons */
     div.stButton > button {
         width: 100%;
         background: linear-gradient(90deg, #d946ef, #8b5cf6);
@@ -559,18 +570,6 @@ def get_efficiency_badge(task):
     if task["status"] == "Done":
         return '<span class="badge" style="background:#10b98120; color:#4ade80;">Done</span>'
     return '<span class="badge" style="background:#3b82f620; color:#60a5fa;">Active</span>'
-
-def render_metric_card(icon, gradient, value, label, sub):
-    st.markdown(f"""
-    <div class="titan-card">
-        <div style="width:48px; height:48px; border-radius:14px; display:flex; align-items:center; justify-content:center; font-size:24px; background:{gradient}; color:white; margin-bottom:15px; box-shadow:inset 0 0 0 1px rgba(255,255,255,0.1);">
-            {icon}
-        </div>
-        <div style="font-size:32px; font-weight:700; background:linear-gradient(135deg, #ffffff 0%, #a5b4fc 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; margin-bottom:5px;">{value}</div>
-        <div style="font-size:14px; color:rgba(255,255,255,0.7); font-weight:500; text-transform:uppercase;">{label}</div>
-        <div style="font-size:12px; color:rgba(255,255,255,0.5);">{sub}</div>
-    </div>
-    """, unsafe_allow_html=True)
 
 # --- AUTHENTICATION FLOW ---
 if "authenticated" not in st.session_state:
@@ -652,7 +651,7 @@ else:
     # Navigation
     
     nav_opts = ["Dashboard", "My Desk", "Team Calendar", "3PL Logistics", "Team & Reports", "Inventory & SOPs", "AI Assistant 🤖"]
-    page = st.sidebar.radio("Navigation", nav_opts, label_visibility="collapsed")
+    page = st.sidebar.radio("Navigation", nav_opts, label_visibility="hidden")
     
     st.sidebar.markdown("<br><br>", unsafe_allow_html=True)
     if st.sidebar.button("LOGOUT"):
@@ -680,20 +679,26 @@ else:
         if "dashboard_filter" not in st.session_state:
             st.session_state.dashboard_filter = "In Progress"
 
+        # DASHBOARD METRIC TILES (Clickable Buttons)
         c1, c2, c3, c4 = st.columns(4)
         
-        # Helper to render card and button
-        def metric_button(col, icon, grad, val, lbl, sub, filter_key):
-            with col:
-                render_metric_card(icon, grad, val, lbl, sub)
-                if st.button(f"View {lbl}", key=f"btn_{filter_key}", use_container_width=True):
-                    st.session_state.dashboard_filter = filter_key
-                    safe_rerun()
-
-        metric_button(c1, "⚡", "linear-gradient(135deg, #3b82f6, #06b6d4)", str(total), "Total Tasks", "All Time", "All")
-        metric_button(c2, "🔥", "linear-gradient(135deg, #f59e0b, #fbbf24)", str(in_progress_count), "In Progress", "Happening Now", "In Progress")
-        metric_button(c3, "📋", "linear-gradient(135deg, #8b5cf6, #d946ef)", str(todo_count), "To Do", "Backlog", "To Do")
-        metric_button(c4, "✅", "linear-gradient(135deg, #10b981, #34d399)", f"{completion_rate}%", "Completion", "Efficiency", "Done")
+        # We replace HTML cards with Streamlit Buttons styled as tiles
+        with c1:
+            if st.button(f"⚡ Total Tasks\n{total}", key="btn_all", use_container_width=True):
+                st.session_state.dashboard_filter = "All"
+                safe_rerun()
+        with c2:
+            if st.button(f"🔥 In Progress\n{in_progress_count}", key="btn_prog", use_container_width=True):
+                st.session_state.dashboard_filter = "In Progress"
+                safe_rerun()
+        with c3:
+            if st.button(f"📋 To Do\n{todo_count}", key="btn_todo", use_container_width=True):
+                st.session_state.dashboard_filter = "To Do"
+                safe_rerun()
+        with c4:
+            if st.button(f"✅ Completion\n{completion_rate}%", key="btn_done", use_container_width=True):
+                st.session_state.dashboard_filter = "Done"
+                safe_rerun()
 
         st.markdown("<br>", unsafe_allow_html=True)
         
@@ -711,7 +716,6 @@ else:
         if not filtered_tasks:
             st.info("No tasks found in this category.")
         else:
-            # Professional Data Table for Drilldown
             st.dataframe(
                 pd.DataFrame(filtered_tasks)[['title', 'assignee', 'company', 'status', 'priority', 'act_time']],
                 use_container_width=True,
