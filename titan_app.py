@@ -107,7 +107,7 @@ def init_db():
                     category TEXT
                 )''')
 
-    # 8. Task Comments (New)
+    # 8. Task Comments
     c.execute('''CREATE TABLE IF NOT EXISTS task_comments (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     task_id INTEGER,
@@ -390,11 +390,12 @@ def ask_gemini(prompt, context=""):
         return model.generate_content(f"Titan AI Context: {context}. User: {prompt}").text
     except Exception as e: return f"Error: {e}"
 
-# --- CSS STYLING (LIQUID GLASS) ---
+# --- CSS STYLING (LIQUID GLASS PRO) ---
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap');
 
+    /* Global */
     .stApp {
         background-color: #09090b;
         background-image: 
@@ -408,12 +409,100 @@ st.markdown("""
         color: white;
     }
 
+    /* Sidebar Glass */
     [data-testid="stSidebar"] {
-        background: rgba(9, 9, 11, 0.7);
+        background: rgba(9, 9, 11, 0.85);
         backdrop-filter: blur(20px);
-        border-right: 1px solid rgba(255,255,255,0.1);
+        border-right: 1px solid rgba(255,255,255,0.08);
     }
 
+    /* Gradient Title */
+    .titan-title {
+        font-size: 26px;
+        font-weight: 800;
+        background: linear-gradient(to right, #ec4899, #8b5cf6);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-bottom: 25px;
+        letter-spacing: -0.5px;
+    }
+
+    /* User Profile Card */
+    .user-card {
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 16px;
+        padding: 16px;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        margin-bottom: 25px;
+        transition: background 0.3s;
+    }
+    .user-card:hover {
+        background: rgba(255, 255, 255, 0.07);
+    }
+
+    /* Time Clock Active State */
+    .time-active {
+        background: rgba(16, 185, 129, 0.15);
+        border: 1px solid rgba(16, 185, 129, 0.25);
+        color: #4ade80;
+        padding: 14px;
+        border-radius: 12px;
+        font-weight: 600;
+        font-size: 14px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 12px;
+    }
+
+    /* Navigation Menu Styling */
+    div[data-testid="stRadio"] > label {
+        display: none; /* Hide label "NAVIGATION" */
+    }
+    div[role="radiogroup"] {
+        gap: 8px;
+    }
+    div[role="radiogroup"] label {
+        background: transparent;
+        border: none;
+        padding: 10px 14px;
+        border-radius: 10px;
+        transition: all 0.2s;
+        color: #a1a1aa;
+        font-weight: 500;
+    }
+    div[role="radiogroup"] label:hover {
+        background: rgba(255,255,255,0.06);
+        color: white;
+    }
+    /* Active Item Highlight handled by Streamlit (Pink dot usually) */
+
+    /* Buttons */
+    div.stButton > button {
+        width: 100%;
+        background: linear-gradient(90deg, #d946ef, #8b5cf6); /* Pink/Purple */
+        border: none;
+        padding: 0.75rem;
+        border-radius: 12px;
+        font-weight: 600;
+        color: white;
+        transition: transform 0.2s, box-shadow 0.2s;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        font-size: 12px;
+    }
+    div.stButton > button:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 15px rgba(217, 70, 239, 0.4);
+    }
+    div.stButton > button:active {
+        transform: scale(0.98);
+    }
+
+    /* Cards */
     .titan-card {
         background: rgba(255, 255, 255, 0.05);
         backdrop-filter: blur(16px);
@@ -429,28 +518,12 @@ st.markdown("""
         border-color: rgba(255, 255, 255, 0.25);
     }
 
+    /* Inputs */
     .stTextInput input, .stSelectbox div[data-baseweb="select"] > div, .stNumberInput input {
         background-color: rgba(0, 0, 0, 0.4) !important;
         color: white !important;
         border: 1px solid rgba(255, 255, 255, 0.15) !important;
-        border-radius: 8px !important;
-    }
-    
-    div.stButton > button {
-        background: linear-gradient(90deg, #ec4899, #8b5cf6);
-        border: none;
-        color: white;
-        font-weight: 600;
-        border-radius: 10px;
-        padding: 0.5rem 1rem;
-        transition: all 0.3s;
-    }
-    div.stButton > button:hover {
-        box-shadow: 0 0 15px rgba(236, 72, 153, 0.5);
-    }
-    
-    .status-badge {
-        padding: 4px 10px; border-radius:12px; font-weight:bold; font-size:12px; text-transform:uppercase;
+        border-radius: 10px !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -512,43 +585,55 @@ else:
     user = st.session_state.user
     
     # --- SIDEBAR ---
-    st.sidebar.markdown("<h2>TITAN OS</h2>", unsafe_allow_html=True)
+    st.sidebar.markdown('<div class="titan-title">TITAN OS</div>', unsafe_allow_html=True)
     
+    # User Profile
     st.sidebar.markdown(f"""
-    <div style="background: rgba(255,255,255,0.05); border-radius: 12px; padding: 15px; border: 1px solid rgba(255,255,255,0.1);">
-        <div style="display:flex; align-items:center; gap:10px;">
-            <div style="font-size:28px;">{user['avatar']}</div>
-            <div>
-                <div style="font-weight:bold; font-size:15px;">{user['name']}</div>
-                <div style="font-size:11px; color:#a1a1aa; text-transform:uppercase;">{user['role']}</div>
-            </div>
+    <div class="user-card">
+        <div style="font-size: 20px; background: rgba(255,255,255,0.1); width: 42px; height: 42px; display: flex; align-items: center; justify-content: center; border-radius: 50%;">{user['avatar']}</div>
+        <div style="line-height: 1.3;">
+            <div style="font-weight: 700; font-size: 15px; color: white;">{user['name']}</div>
+            <div style="font-size: 11px; color: #a1a1aa; text-transform: uppercase; letter-spacing: 0.5px;">{user['role']}</div>
         </div>
     </div>
     """, unsafe_allow_html=True)
 
     # Time Clock
-    st.sidebar.markdown("### ⏱ Time Clock")
+    st.sidebar.markdown('<div style="color: #71717a; font-size: 11px; font-weight: 700; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px;">Time Clock</div>', unsafe_allow_html=True)
     last_event = get_last_work_event(user['username'])
     is_working = last_event and last_event[0] == 'CLOCK_IN'
     
     if is_working:
-        st.sidebar.success(f"🟢 Working since {last_event[1][11:16]}")
-        if st.sidebar.button("CLOCK OUT"):
+        st.sidebar.markdown(f"""
+        <div class="time-active">
+            <div style="width: 8px; height: 8px; background: #4ade80; border-radius: 50%; box-shadow: 0 0 10px #4ade80;"></div>
+            <span>Working since {last_event[1][11:16]}</span>
+        </div>
+        """, unsafe_allow_html=True)
+        if st.sidebar.button("CLOCK OUT", type="primary"):
             log_work_event(user['username'], 'CLOCK_OUT')
             st.success("Shift Ended")
             safe_rerun()
     else:
-        st.sidebar.warning("⚪ Currently Offline")
+        st.sidebar.markdown(f"""
+        <div class="user-card" style="margin-bottom: 10px; padding: 12px; justify-content: center; color: #a1a1aa; font-size: 13px; background: rgba(255,255,255,0.02);">
+            ⚪ Currently Offline
+        </div>
+        """, unsafe_allow_html=True)
         if st.sidebar.button("CLOCK IN"):
             log_work_event(user['username'], 'CLOCK_IN')
             st.success("Shift Started")
             safe_rerun()
 
-    st.sidebar.markdown("---")
-    nav_opts = ["Dashboard", "My Desk", "Team Calendar", "3PL Logistics", "Team & Reports", "Inventory & SOPs", "AI Assistant 🤖"]
-    page = st.sidebar.radio("NAVIGATION", nav_opts)
+    st.sidebar.markdown("<br>", unsafe_allow_html=True)
     
-    st.sidebar.markdown("---")
+    # Navigation
+    st.sidebar.markdown('<div style="color: #71717a; font-size: 11px; font-weight: 700; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 1px;">Navigation</div>', unsafe_allow_html=True)
+    
+    nav_opts = ["Dashboard", "My Desk", "Team Calendar", "3PL Logistics", "Team & Reports", "Inventory & SOPs", "AI Assistant 🤖"]
+    page = st.sidebar.radio("Navigation", nav_opts, label_visibility="collapsed")
+    
+    st.sidebar.markdown("<br><br>", unsafe_allow_html=True)
     if st.sidebar.button("LOGOUT"):
         st.session_state.authenticated = False
         safe_rerun()
