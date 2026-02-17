@@ -390,12 +390,12 @@ def ask_gemini(prompt, context=""):
         return model.generate_content(f"Titan AI Context: {context}. User: {prompt}").text
     except Exception as e: return f"Error: {e}"
 
-# --- CSS STYLING (LIQUID GLASS PRO) ---
+# --- CSS STYLING (LIQUID GLASS PRO MAX) ---
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap');
 
-    /* Global */
+    /* --- BACKGROUND & GLOBAL --- */
     .stApp {
         background-color: #09090b;
         background-image: 
@@ -409,14 +409,73 @@ st.markdown("""
         color: white;
     }
 
-    /* Sidebar Glass */
+    /* --- SIDEBAR GLASS --- */
     [data-testid="stSidebar"] {
         background: rgba(9, 9, 11, 0.85);
         backdrop-filter: blur(20px);
         border-right: 1px solid rgba(255,255,255,0.08);
     }
 
-    /* Gradient Title */
+    /* --- NAVIGATION MENU STYLING --- */
+    /* Container for radio options */
+    [data-testid="stSidebar"] [data-testid="stRadio"] > div {
+        background: transparent;
+        gap: 12px;
+    }
+
+    /* Individual Navigation Items (Labels) */
+    [data-testid="stSidebar"] [data-testid="stRadio"] label {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        border-radius: 12px;
+        padding: 12px 16px;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        display: flex;
+        align-items: center;
+        cursor: pointer;
+        position: relative;
+        overflow: hidden;
+    }
+
+    /* Hover State */
+    [data-testid="stSidebar"] [data-testid="stRadio"] label:hover {
+        background: rgba(255, 255, 255, 0.08);
+        border-color: rgba(255, 255, 255, 0.2);
+        transform: translateX(4px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+
+    /* Hide Default Radio Circles */
+    [data-testid="stSidebar"] [data-testid="stRadio"] label > div:first-child {
+        display: none;
+    }
+
+    /* Text Styling in Nav */
+    [data-testid="stSidebar"] [data-testid="stRadio"] label p {
+        color: #a1a1aa;
+        font-size: 14px;
+        font-weight: 500;
+        margin: 0;
+        padding-left: 0px;
+    }
+
+    /* --- SELECTED STATE (Magic) --- */
+    /* Target the label that contains the checked input */
+    [data-testid="stSidebar"] [data-testid="stRadio"] label:has(input:checked) {
+        background: linear-gradient(90deg, rgba(236, 72, 153, 0.15), rgba(139, 92, 246, 0.15));
+        border: 1px solid #ec4899;
+        box-shadow: 0 0 15px rgba(236, 72, 153, 0.3), inset 0 0 20px rgba(236, 72, 153, 0.1);
+    }
+
+    /* Text Color when Selected */
+    [data-testid="stSidebar"] [data-testid="stRadio"] label:has(input:checked) p {
+        color: #fff !important;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        text-shadow: 0 0 8px rgba(236, 72, 153, 0.6);
+    }
+
+    /* --- OTHER UI ELEMENTS --- */
     .titan-title {
         font-size: 26px;
         font-weight: 800;
@@ -427,7 +486,6 @@ st.markdown("""
         letter-spacing: -0.5px;
     }
 
-    /* User Profile Card */
     .user-card {
         background: rgba(255, 255, 255, 0.04);
         border: 1px solid rgba(255, 255, 255, 0.08);
@@ -439,51 +497,26 @@ st.markdown("""
         margin-bottom: 25px;
         transition: background 0.3s;
     }
-    .user-card:hover {
-        background: rgba(255, 255, 255, 0.07);
-    }
 
-    /* Time Clock Active State */
     .time-active {
-        background: rgba(16, 185, 129, 0.15);
-        border: 1px solid rgba(16, 185, 129, 0.25);
+        background: rgba(16, 185, 129, 0.1);
+        border: 1px solid rgba(16, 185, 129, 0.3);
         color: #4ade80;
-        padding: 14px;
+        padding: 12px;
         border-radius: 12px;
         font-weight: 600;
-        font-size: 14px;
+        font-size: 13px;
         display: flex;
         align-items: center;
         gap: 10px;
         margin-bottom: 12px;
+        box-shadow: 0 0 10px rgba(16, 185, 129, 0.1);
     }
-
-    /* Navigation Menu Styling */
-    div[data-testid="stRadio"] > label {
-        display: none; /* Hide label "NAVIGATION" */
-    }
-    div[role="radiogroup"] {
-        gap: 8px;
-    }
-    div[role="radiogroup"] label {
-        background: transparent;
-        border: none;
-        padding: 10px 14px;
-        border-radius: 10px;
-        transition: all 0.2s;
-        color: #a1a1aa;
-        font-weight: 500;
-    }
-    div[role="radiogroup"] label:hover {
-        background: rgba(255,255,255,0.06);
-        color: white;
-    }
-    /* Active Item Highlight handled by Streamlit (Pink dot usually) */
 
     /* Buttons */
     div.stButton > button {
         width: 100%;
-        background: linear-gradient(90deg, #d946ef, #8b5cf6); /* Pink/Purple */
+        background: linear-gradient(90deg, #d946ef, #8b5cf6);
         border: none;
         padding: 0.75rem;
         border-radius: 12px;
@@ -498,11 +531,8 @@ st.markdown("""
         transform: translateY(-1px);
         box-shadow: 0 4px 15px rgba(217, 70, 239, 0.4);
     }
-    div.stButton > button:active {
-        transform: scale(0.98);
-    }
 
-    /* Cards */
+    /* Cards & Inputs */
     .titan-card {
         background: rgba(255, 255, 255, 0.05);
         backdrop-filter: blur(16px);
@@ -513,12 +543,6 @@ st.markdown("""
         margin-bottom: 15px;
         transition: transform 0.2s;
     }
-    .titan-card:hover {
-        transform: translateY(-3px);
-        border-color: rgba(255, 255, 255, 0.25);
-    }
-
-    /* Inputs */
     .stTextInput input, .stSelectbox div[data-baseweb="select"] > div, .stNumberInput input {
         background-color: rgba(0, 0, 0, 0.4) !important;
         color: white !important;
