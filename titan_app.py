@@ -417,6 +417,7 @@ st.markdown("""
     }
 
     /* --- NAVIGATION MENU STYLING --- */
+    
     /* Hide the default radio button circle and header */
     [data-testid="stSidebar"] [data-testid="stRadio"] label > div:first-child { display: none; }
     [data-testid="stSidebar"] [data-testid="stRadio"] > label { display: none !important; }
@@ -689,9 +690,20 @@ else:
 
         st.markdown("<br>", unsafe_allow_html=True)
         
-        # --- DRILL DOWN SECTION ---
+        # --- DRILL DOWN SECTION (PRO MAX) ---
         st.markdown(f"### 🔎 Task Drilldown: {st.session_state.dashboard_filter}")
         
+        # Search & Filter Toolbar
+        f1, f2, f3 = st.columns([2, 1, 1])
+        search_query = f1.text_input("Search Title or Assignee", placeholder="Type to search...", label_visibility="collapsed")
+        
+        # Get unique values for filters
+        all_companies = sorted(list(set([t['company'] for t in tasks if t['company']])))
+        all_priorities = ["High", "Medium", "Low"]
+        
+        filter_company = f2.multiselect("Company", all_companies, placeholder="Filter by Company", label_visibility="collapsed")
+        filter_priority = f3.multiselect("Priority", all_priorities, placeholder="Filter by Priority", label_visibility="collapsed")
+
         # Filter Logic
         if st.session_state.dashboard_filter == "All":
             filtered_tasks = tasks
@@ -699,19 +711,33 @@ else:
              filtered_tasks = done_tasks
         else:
             filtered_tasks = [t for t in tasks if t['status'] == st.session_state.dashboard_filter]
+        
+        # Apply Search & Dropdown Filters
+        df_display = pd.DataFrame(filtered_tasks)
+        if not df_display.empty:
+            if search_query:
+                df_display = df_display[df_display['title'].str.contains(search_query, case=False) | df_display['assignee'].str.contains(search_query, case=False)]
+            if filter_company:
+                df_display = df_display[df_display['company'].isin(filter_company)]
+            if filter_priority:
+                df_display = df_display[df_display['priority'].isin(filter_priority)]
 
-        if not filtered_tasks:
-            st.info("No tasks found in this category.")
+        if df_display.empty:
+            st.info("No tasks found matching criteria.")
         else:
             # Professional Data Table for Drilldown
             st.dataframe(
-                pd.DataFrame(filtered_tasks)[['title', 'assignee', 'company', 'status', 'priority', 'act_time']],
+                df_display[['title', 'assignee', 'company', 'status', 'priority', 'act_time']],
                 use_container_width=True,
                 column_config={
-                    "act_time": st.column_config.NumberColumn("Hours Logged", format="%.2f h"),
-                    "status": st.column_config.TextColumn("Status")
+                    "act_time": st.column_config.NumberColumn("Hours", format="%.2f h"),
+                    "status": st.column_config.TextColumn("Status"),
+                    "priority": st.column_config.Column("Priority", width="small"),
+                    "company": st.column_config.Column("Company", width="medium"),
+                    "title": st.column_config.Column("Task", width="large")
                 },
-                hide_index=True
+                hide_index=True,
+                height=400 
             )
 
         st.markdown("---")
