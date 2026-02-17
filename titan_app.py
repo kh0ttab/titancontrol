@@ -418,62 +418,59 @@ st.markdown("""
 
     /* --- NAVIGATION MENU STYLING --- */
     
-    /* Hide the radio button circles */
-    [data-testid="stSidebar"] [data-testid="stRadio"] label > div:first-child {
-        display: none;
-    }
+    /* Hide the default radio button circle and top header */
+    [data-testid="stSidebar"] [data-testid="stRadio"] label > div:first-child { display: none; }
+    [data-testid="stSidebar"] [data-testid="stRadio"] > label { display: none !important; }
     
     /* Container layout */
     [data-testid="stSidebar"] [data-testid="stRadio"] > div {
         background: transparent;
-        gap: 10px; /* Space between tiles */
+        gap: 8px; 
         width: 100%;
     }
 
     /* Individual Navigation Items (Tiles) */
-    [data-testid="stSidebar"] [data-testid="stRadio"] label {
+    [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] label {
         background: rgba(255, 255, 255, 0.05);
         border: 1px solid rgba(255, 255, 255, 0.08);
         border-radius: 12px;
-        padding: 12px 16px; /* Uniform padding */
-        width: 100%; /* Make them all same size */
+        padding: 12px 16px;
+        width: 100%;
         display: flex;
         align-items: center;
         justify-content: flex-start;
         cursor: pointer;
         transition: all 0.2s ease-in-out;
-        margin-bottom: 0px;
-    }
-
-    /* Text Styling in Nav */
-    [data-testid="stSidebar"] [data-testid="stRadio"] label p {
-        color: #a1a1aa;
-        font-size: 14px;
-        font-weight: 500;
-        margin: 0;
-        width: 100%;
+        margin: 0 !important;
     }
 
     /* Hover State */
-    [data-testid="stSidebar"] [data-testid="stRadio"] label:hover {
+    [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] label:hover {
         background: rgba(255, 255, 255, 0.1);
         border-color: rgba(255, 255, 255, 0.2);
         transform: translateX(4px);
     }
 
-    /* --- SELECTED STATE (Magic) --- */
-    /* Target the label that contains the checked input */
-    [data-testid="stSidebar"] [data-testid="stRadio"] label:has(input:checked) {
-        background: linear-gradient(90deg, rgba(236, 72, 153, 0.2), rgba(139, 92, 246, 0.2)); /* Pink/Purple Tint */
-        border: 1px solid #ec4899; /* Neon Pink Border */
-        box-shadow: 0 0 15px rgba(236, 72, 153, 0.3), inset 0 0 10px rgba(236, 72, 153, 0.1);
+    /* Selected State (Neon Glow) */
+    [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] label:has(input:checked) {
+        background: linear-gradient(90deg, rgba(236, 72, 153, 0.15), rgba(139, 92, 246, 0.15));
+        border: 1px solid #ec4899;
+        box-shadow: 0 0 12px rgba(236, 72, 153, 0.2);
+    }
+
+    /* Text Styling */
+    [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] label p {
+        color: #a1a1aa;
+        font-size: 15px;
+        font-weight: 500;
+        margin: 0;
+        width: 100%;
     }
 
     /* Selected Text Color */
-    [data-testid="stSidebar"] [data-testid="stRadio"] label:has(input:checked) p {
-        color: white !important;
+    [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] label:has(input:checked) p {
+        color: #ffffff !important;
         font-weight: 700;
-        letter-spacing: 0.5px;
     }
 
     /* --- OTHER UI ELEMENTS --- */
