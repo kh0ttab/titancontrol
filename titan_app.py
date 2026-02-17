@@ -5,6 +5,7 @@ import os
 import time
 import sqlite3
 import hashlib
+from urllib.parse import quote
 
 # --- SAFETY: GEMINI IMPORT ---
 try:
@@ -14,7 +15,7 @@ except ImportError:
     AI_AVAILABLE = False
 
 # --- CONFIGURATION ---
-st.set_page_config(
+st.set_page_aconfig(
     page_title="Titan Control OS",
     page_icon="🦁",
     layout="wide",
@@ -104,6 +105,15 @@ def init_db():
                     title TEXT,
                     content TEXT,
                     category TEXT
+                )''')
+
+    # 8. Task Comments (New)
+    c.execute('''CREATE TABLE IF NOT EXISTS task_comments (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    task_id INTEGER,
+                    username TEXT,
+                    comment TEXT,
+                    timestamp TEXT
                 )''')
     
     # Seed Default Data
@@ -262,6 +272,36 @@ def add_sop(title, content, category):
     conn.execute("INSERT INTO sops (title, content, category) VALUES (?, ?, ?)", (title, content, category))
     conn.commit()
     conn.close()
+
+# --- COMMENT FUNCTIONS ---
+def add_comment(task_id, username, comment):
+    conn = get_db()
+    ts = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+    conn.execute("INSERT INTO task_comments (task_id, username, comment, timestamp) VALUES (?, ?, ?, ?)",
+                 (task_id, username, comment, ts))
+    conn.commit()
+    conn.close()
+
+def get_comments(task_id):
+    conn = get_db()
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    c.execute("SELECT * FROM task_comments WHERE task_id=? ORDER BY id ASC", (task_id,))
+    rows = [dict(r) for r in c.fetchall()]
+    conn.close()
+    return rows
+
+# --- CALENDAR HELPERS ---
+def create_gcal_link(title, date_str, desc=""):
+    try:
+        dt = datetime.datetime.strptime(date_str, "%Y-%m-%d")
+        start = dt.replace(hour=9, minute=0).strftime("%Y%m%dT%H%M%S")
+        end = dt.replace(hour=10, minute=0).strftime("%Y%m%dT%H%M%S")
+        base = "https://www.google.com/calendar/render?action=TEMPLATE"
+        link = f"{base}&text={quote(title)}&dates={start}/{end}&details={quote(desc)}"
+        return link
+    except:
+        return "#"
 
 # --- TASK FUNCTIONS ---
 def get_tasks():
@@ -505,7 +545,7 @@ else:
             safe_rerun()
 
     st.sidebar.markdown("---")
-    nav_opts = ["Dashboard", "My Desk", "3PL Logistics", "Team & Reports", "Inventory & SOPs", "AI Assistant 🤖"]
+    nav_opts = ["Dashboard", "My Desk", "Team Calendar", "3PL Logistics", "Team & Reports", "Inventory & SOPs", "AI Assistant 🤖"]
     page = st.sidebar.radio("NAVIGATION", nav_opts)
     
     st.sidebar.markdown("---")
@@ -667,7 +707,7 @@ else:
         
         for t in my_tasks:
             with st.container():
-                c_card, c_timer, c_edit = st.columns([5, 2, 1])
+                c_card, c_timer, c_edit, c_comment = st.columns([4, 2, 1, 1])
                 
                 with c_card:
                     timer_active = t['timer_start'] is not None
@@ -723,6 +763,44 @@ else:
                         if st.button("Update", key=f"up_{t['id']}"):
                             update_task(t['id'], n_stat, n_assignee, n_time)
                             safe_rerun()
+                
+                with c_comment:
+                    st.markdown(f"<div style='height:18px;'></div>", unsafe_allow_html=True)
+                    with st.popover("💬"):
+                        st.markdown("**Comments**")
+                        comments = get_comments(t['id'])
+                        for c in comments:
+                            st.markdown(f"<small><b>{c['username']}</b> ({c['timestamp']}): {c['comment']}</small>", unsafe_allow_html=True)
+                            st.divider()
+                        
+                        new_c = st.text_input("Add comment", key=f"nc_{t['id']}")
+                        if st.button("Post", key=f"pc_{t['id']}"):
+                            add_comment(t['id'], user['name'], new_c)
+                            safe_rerun()
+
+    # --- PAGE: TEAM CALENDAR ---
+    elif page == "Team Calendar":
+        st.markdown("# 🗓️ Team Calendar")
+        
+        tasks = get_tasks()
+        # Simple list view sorted by date for now, acting as a schedule
+        sorted_tasks = sorted(tasks, key=lambda x: x['planned_date'], reverse=True)
+        
+        for t in sorted_tasks:
+            gcal_link = create_gcal_link(f"Titan Task: {t['title']}", t['planned_date'], f"Assigned to {t['assignee']}")
+            
+            with st.container():
+                c1, c2 = st.columns([4, 1])
+                with c1:
+                    st.markdown(f"""
+                    <div class="titan-card" style="padding: 15px; margin-bottom: 5px;">
+                        <div style="font-weight:bold;">{t['title']}</div>
+                        <div style="font-size:12px; opacity:0.7;">Due: {t['planned_date']} • {t['assignee']}</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                with c2:
+                    st.markdown(f"<br>", unsafe_allow_html=True)
+                    st.markdown(f'<a href="{gcal_link}" target="_blank" style="background:#4285F4; color:white; padding:8px 12px; border-radius:5px; text-decoration:none; font-size:12px; font-weight:bold;">📅 Add to GCal</a>', unsafe_allow_html=True)
 
     # --- PAGE: 3PL LOGISTICS ---
     elif page == "3PL Logistics":
