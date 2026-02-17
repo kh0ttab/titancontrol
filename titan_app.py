@@ -15,7 +15,7 @@ except ImportError:
     AI_AVAILABLE = False
 
 # --- CONFIGURATION ---
-st.set_page_aconfig(
+st.set_page_config(
     page_title="Titan Control OS",
     page_icon="🦁",
     layout="wide",
