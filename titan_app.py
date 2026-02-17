@@ -518,32 +518,73 @@ else:
         st.markdown("# Executive Overview")
         
         tasks = get_tasks()
-        df_tasks = pd.DataFrame(tasks)
         
-        # Key Metrics
+        # Key Metrics Calculation
         total = len(tasks)
-        in_progress = len([t for t in tasks if t['status'] == 'In Progress'])
-        todo = len([t for t in tasks if t['status'] == 'To Do'])
-        done = len([t for t in tasks if t['status'] == 'Done'])
+        in_progress_tasks = [t for t in tasks if t['status'] == 'In Progress']
+        in_progress_count = len(in_progress_tasks)
+        todo_tasks = [t for t in tasks if t['status'] == 'To Do']
+        todo_count = len(todo_tasks)
+        done_tasks = [t for t in tasks if t['status'] == 'Done']
+        done_count = len(done_tasks)
         
-        completion_rate = int((done / total * 100)) if total > 0 else 0
+        completion_rate = int((done_count / total * 100)) if total > 0 else 0
+
+        # Session state for filter
+        if "dashboard_filter" not in st.session_state:
+            st.session_state.dashboard_filter = "In Progress"
 
         c1, c2, c3, c4 = st.columns(4)
-        with c1: render_metric_card("⚡", "linear-gradient(135deg, #3b82f6, #06b6d4)", str(total), "Total Tasks", "All Time")
-        with c2: render_metric_card("🔥", "linear-gradient(135deg, #f59e0b, #fbbf24)", str(in_progress), "In Progress", "Happening Now")
-        with c3: render_metric_card("📋", "linear-gradient(135deg, #8b5cf6, #d946ef)", str(todo), "To Do", "Backlog")
-        with c4: render_metric_card("✅", "linear-gradient(135deg, #10b981, #34d399)", f"{completion_rate}%", "Completion", "Efficiency")
+        
+        # Helper to render card and button
+        def metric_button(col, icon, grad, val, lbl, sub, filter_key):
+            with col:
+                render_metric_card(icon, grad, val, lbl, sub)
+                if st.button(f"View {lbl}", key=f"btn_{filter_key}", use_container_width=True):
+                    st.session_state.dashboard_filter = filter_key
+                    safe_rerun()
+
+        metric_button(c1, "⚡", "linear-gradient(135deg, #3b82f6, #06b6d4)", str(total), "Total Tasks", "All Time", "All")
+        metric_button(c2, "🔥", "linear-gradient(135deg, #f59e0b, #fbbf24)", str(in_progress_count), "In Progress", "Happening Now", "In Progress")
+        metric_button(c3, "📋", "linear-gradient(135deg, #8b5cf6, #d946ef)", str(todo_count), "To Do", "Backlog", "To Do")
+        metric_button(c4, "✅", "linear-gradient(135deg, #10b981, #34d399)", f"{completion_rate}%", "Completion", "Efficiency", "Done")
 
         st.markdown("<br>", unsafe_allow_html=True)
         
+        # --- DRILL DOWN SECTION ---
+        st.markdown(f"### 🔎 Task Drilldown: {st.session_state.dashboard_filter}")
+        
+        # Filter Logic
+        if st.session_state.dashboard_filter == "All":
+            filtered_tasks = tasks
+        elif st.session_state.dashboard_filter == "Done":
+             filtered_tasks = done_tasks
+        else:
+            filtered_tasks = [t for t in tasks if t['status'] == st.session_state.dashboard_filter]
+
+        if not filtered_tasks:
+            st.info("No tasks found in this category.")
+        else:
+            # Professional Data Table for Drilldown
+            st.dataframe(
+                pd.DataFrame(filtered_tasks)[['title', 'assignee', 'company', 'status', 'priority', 'act_time']],
+                use_container_width=True,
+                column_config={
+                    "act_time": st.column_config.NumberColumn("Hours Logged", format="%.2f h"),
+                    "status": st.column_config.TextColumn("Status")
+                },
+                hide_index=True
+            )
+
+        st.markdown("---")
+
         # Row 2: Live Operations & Charts
         c_left, c_right = st.columns([2, 1])
         
         with c_left:
             st.markdown("### 🚧 Ongoing Operations (Real-Time)")
-            if in_progress > 0:
-                active_tasks = [t for t in tasks if t['status'] == 'In Progress']
-                for t in active_tasks:
+            if in_progress_count > 0:
+                for t in in_progress_tasks:
                     is_running = t['timer_start'] is not None
                     status_icon = "⏳" if is_running else "⏸️"
                     border_color = "#f59e0b" if is_running else "rgba(255,255,255,0.1)"
@@ -563,11 +604,6 @@ else:
                 st.info("No active tasks. The team is either clear or idle.")
 
         with c_right:
-            st.markdown("### 📊 Task Status")
-            if not df_tasks.empty:
-                status_counts = df_tasks['status'].value_counts()
-                st.bar_chart(status_counts, color="#3b82f6")
-            
             st.markdown("### 👥 Live Attendance")
             workers = get_live_workers()
             if workers:
