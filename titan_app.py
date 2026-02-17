@@ -417,74 +417,83 @@ st.markdown("""
     }
 
     /* --- NAVIGATION MENU STYLING --- */
-    
-    /* Hide the default radio button circle and top header */
+    /* Hide the default radio button circle and header */
     [data-testid="stSidebar"] [data-testid="stRadio"] label > div:first-child { display: none; }
     [data-testid="stSidebar"] [data-testid="stRadio"] > label { display: none !important; }
     
-    /* Container layout */
-    [data-testid="stSidebar"] [data-testid="stRadio"] > div {
-        background: transparent;
-        gap: 8px; 
-        width: 100%;
+    /* Tiles Layout */
+    [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] {
+        gap: 8px;
+    }
+
+    /* Unselected Tile */
+    [data-testid="stSidebar"] [data-testid="stRadio"] label {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 12px;
+        padding: 12px 16px !important;
+        margin-bottom: 4px !important;
+        transition: all 0.3s ease;
+    }
+    
+    /* Hover */
+    [data-testid="stSidebar"] [data-testid="stRadio"] label:hover {
+        background: rgba(255, 255, 255, 0.1);
+        transform: translateX(4px);
+        border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    /* Selected Tile (Neon Glow) */
+    [data-testid="stSidebar"] [data-testid="stRadio"] label:has(input:checked) {
+        background: linear-gradient(90deg, rgba(236, 72, 153, 0.15), rgba(139, 92, 246, 0.15));
+        border: 1px solid #ec4899;
+        box-shadow: 0 0 15px rgba(236, 72, 153, 0.25);
+    }
+
+    /* Text Colors */
+    [data-testid="stSidebar"] [data-testid="stRadio"] label p {
+        color: #a1a1aa;
+        font-weight: 500;
+        font-size: 15px;
+    }
+    [data-testid="stSidebar"] [data-testid="stRadio"] label:has(input:checked) p {
+        color: #ffffff !important;
+        font-weight: 700;
+        text-shadow: 0 0 5px rgba(236, 72, 153, 0.5);
+    }
+
+    /* --- PRIMARY BUTTONS (Actions) --- */
+    div.stButton > button[kind="primary"] {
+        background: linear-gradient(90deg, #d946ef, #8b5cf6);
+        border: none;
+        color: white;
+        box-shadow: 0 4px 15px rgba(217, 70, 239, 0.4);
+    }
+    
+    /* --- SECONDARY BUTTONS (Dashboard Tiles) --- */
+    div.stButton > button[kind="secondary"] {
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(16px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        color: white;
+        height: 100px; /* Fixed height for tiles */
         display: flex;
         flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        white-space: pre-wrap; /* Allow newlines */
+        line-height: 1.4;
+    }
+    div.stButton > button[kind="secondary"]:hover {
+        background: rgba(255, 255, 255, 0.1);
+        border-color: rgba(255, 255, 255, 0.3);
+        transform: translateY(-2px);
+    }
+    div.stButton > button[kind="secondary"]:active {
+        background: rgba(255, 255, 255, 0.15);
     }
 
-    /* Individual Navigation Items (Tiles) */
-    [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] label {
-        background: rgba(255, 255, 255, 0.05) !important;
-        border: 1px solid rgba(255, 255, 255, 0.08) !important;
-        border-radius: 12px !important;
-        padding: 14px 16px !important;
-        width: 100% !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: flex-start !important;
-        cursor: pointer !important;
-        transition: all 0.2s ease-in-out !important;
-        margin: 0 !important;
-        box-sizing: border-box !important;
-    }
-
-    /* Hover State */
-    [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] label:hover {
-        background: rgba(255, 255, 255, 0.1) !important;
-        border-color: rgba(255, 255, 255, 0.2) !important;
-        transform: translateX(4px);
-    }
-
-    /* Selected State (Neon Glow) */
-    [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] label:has(input:checked) {
-        background: linear-gradient(90deg, rgba(236, 72, 153, 0.15), rgba(139, 92, 246, 0.15)) !important;
-        border: 1px solid #ec4899 !important;
-        box-shadow: 0 0 15px rgba(236, 72, 153, 0.25) !important;
-    }
-
-    /* Text Styling */
-    [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] label p {
-        color: #a1a1aa !important;
-        font-size: 15px !important;
-        font-weight: 500 !important;
-        margin: 0 !important;
-        width: 100% !important;
-    }
-
-    /* Selected Text Color */
-    [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] label:has(input:checked) p {
-        color: #ffffff !important;
-        font-weight: 700 !important;
-    }
-
-    /* --- DASHBOARD BUTTONS AS TILES --- */
-    
-    /* Target the metrics buttons specifically */
-    div.stButton button[kind="primary"] {
-         /* General Styling is handled by global button style, 
-            but for Dashboard we need specific overrides if we want them distinct */
-    }
-
-    /* --- OTHER UI ELEMENTS --- */
+    /* --- TITAN ELEMENTS --- */
     .titan-title {
         font-size: 26px;
         font-weight: 800;
@@ -504,7 +513,6 @@ st.markdown("""
         align-items: center;
         gap: 14px;
         margin-bottom: 25px;
-        transition: background 0.3s;
     }
 
     .time-active {
@@ -522,25 +530,6 @@ st.markdown("""
         box-shadow: 0 0 10px rgba(16, 185, 129, 0.1);
     }
 
-    /* Global Buttons */
-    div.stButton > button {
-        width: 100%;
-        background: linear-gradient(90deg, #d946ef, #8b5cf6);
-        border: none;
-        padding: 0.75rem;
-        border-radius: 12px;
-        font-weight: 600;
-        color: white;
-        transition: transform 0.2s, box-shadow 0.2s;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        font-size: 12px;
-    }
-    div.stButton > button:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 4px 15px rgba(217, 70, 239, 0.4);
-    }
-
     /* Cards & Inputs */
     .titan-card {
         background: rgba(255, 255, 255, 0.05);
@@ -550,7 +539,6 @@ st.markdown("""
         padding: 24px;
         box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
         margin-bottom: 15px;
-        transition: transform 0.2s;
     }
     .stTextInput input, .stSelectbox div[data-baseweb="select"] > div, .stNumberInput input {
         background-color: rgba(0, 0, 0, 0.4) !important;
@@ -641,7 +629,7 @@ else:
             ⚪ Currently Offline
         </div>
         """, unsafe_allow_html=True)
-        if st.sidebar.button("CLOCK IN"):
+        if st.sidebar.button("CLOCK IN", type="primary"):
             log_work_event(user['username'], 'CLOCK_IN')
             st.success("Shift Started")
             safe_rerun()
@@ -654,7 +642,7 @@ else:
     page = st.sidebar.radio("Navigation", nav_opts, label_visibility="hidden")
     
     st.sidebar.markdown("<br><br>", unsafe_allow_html=True)
-    if st.sidebar.button("LOGOUT"):
+    if st.sidebar.button("LOGOUT", type="primary"):
         st.session_state.authenticated = False
         safe_rerun()
 
@@ -679,24 +667,23 @@ else:
         if "dashboard_filter" not in st.session_state:
             st.session_state.dashboard_filter = "In Progress"
 
-        # DASHBOARD METRIC TILES (Clickable Buttons)
         c1, c2, c3, c4 = st.columns(4)
         
-        # We replace HTML cards with Streamlit Buttons styled as tiles
+        # NOTE: Using st.button with newlines for tile look. CSS targets button[kind="secondary"]
         with c1:
-            if st.button(f"⚡ Total Tasks\n{total}", key="btn_all", use_container_width=True):
+            if st.button(f"⚡\n{total}\nTOTAL TASKS", key="btn_all", type="secondary", use_container_width=True):
                 st.session_state.dashboard_filter = "All"
                 safe_rerun()
         with c2:
-            if st.button(f"🔥 In Progress\n{in_progress_count}", key="btn_prog", use_container_width=True):
+            if st.button(f"🔥\n{in_progress_count}\nIN PROGRESS", key="btn_prog", type="secondary", use_container_width=True):
                 st.session_state.dashboard_filter = "In Progress"
                 safe_rerun()
         with c3:
-            if st.button(f"📋 To Do\n{todo_count}", key="btn_todo", use_container_width=True):
+            if st.button(f"📋\n{todo_count}\nTO DO", key="btn_todo", type="secondary", use_container_width=True):
                 st.session_state.dashboard_filter = "To Do"
                 safe_rerun()
         with c4:
-            if st.button(f"✅ Completion\n{completion_rate}%", key="btn_done", use_container_width=True):
+            if st.button(f"✅\n{completion_rate}%\nCOMPLETION", key="btn_done", type="secondary", use_container_width=True):
                 st.session_state.dashboard_filter = "Done"
                 safe_rerun()
 
@@ -716,6 +703,7 @@ else:
         if not filtered_tasks:
             st.info("No tasks found in this category.")
         else:
+            # Professional Data Table for Drilldown
             st.dataframe(
                 pd.DataFrame(filtered_tasks)[['title', 'assignee', 'company', 'status', 'priority', 'act_time']],
                 use_container_width=True,
