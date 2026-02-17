@@ -417,37 +417,32 @@ st.markdown("""
     }
 
     /* --- NAVIGATION MENU STYLING --- */
-    /* Container for radio options */
-    [data-testid="stSidebar"] [data-testid="stRadio"] > div {
-        background: transparent;
-        gap: 12px;
-    }
-
-    /* Individual Navigation Items (Labels) */
-    [data-testid="stSidebar"] [data-testid="stRadio"] label {
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(255, 255, 255, 0.05);
-        border-radius: 12px;
-        padding: 12px 16px;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        display: flex;
-        align-items: center;
-        cursor: pointer;
-        position: relative;
-        overflow: hidden;
-    }
-
-    /* Hover State */
-    [data-testid="stSidebar"] [data-testid="stRadio"] label:hover {
-        background: rgba(255, 255, 255, 0.08);
-        border-color: rgba(255, 255, 255, 0.2);
-        transform: translateX(4px);
-        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-    }
-
-    /* Hide Default Radio Circles */
+    
+    /* Hide the radio button circles */
     [data-testid="stSidebar"] [data-testid="stRadio"] label > div:first-child {
         display: none;
+    }
+    
+    /* Container layout */
+    [data-testid="stSidebar"] [data-testid="stRadio"] > div {
+        background: transparent;
+        gap: 10px; /* Space between tiles */
+        width: 100%;
+    }
+
+    /* Individual Navigation Items (Tiles) */
+    [data-testid="stSidebar"] [data-testid="stRadio"] label {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 12px;
+        padding: 12px 16px; /* Uniform padding */
+        width: 100%; /* Make them all same size */
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        cursor: pointer;
+        transition: all 0.2s ease-in-out;
+        margin-bottom: 0px;
     }
 
     /* Text Styling in Nav */
@@ -456,23 +451,29 @@ st.markdown("""
         font-size: 14px;
         font-weight: 500;
         margin: 0;
-        padding-left: 0px;
+        width: 100%;
+    }
+
+    /* Hover State */
+    [data-testid="stSidebar"] [data-testid="stRadio"] label:hover {
+        background: rgba(255, 255, 255, 0.1);
+        border-color: rgba(255, 255, 255, 0.2);
+        transform: translateX(4px);
     }
 
     /* --- SELECTED STATE (Magic) --- */
     /* Target the label that contains the checked input */
     [data-testid="stSidebar"] [data-testid="stRadio"] label:has(input:checked) {
-        background: linear-gradient(90deg, rgba(236, 72, 153, 0.15), rgba(139, 92, 246, 0.15));
-        border: 1px solid #ec4899;
-        box-shadow: 0 0 15px rgba(236, 72, 153, 0.3), inset 0 0 20px rgba(236, 72, 153, 0.1);
+        background: linear-gradient(90deg, rgba(236, 72, 153, 0.2), rgba(139, 92, 246, 0.2)); /* Pink/Purple Tint */
+        border: 1px solid #ec4899; /* Neon Pink Border */
+        box-shadow: 0 0 15px rgba(236, 72, 153, 0.3), inset 0 0 10px rgba(236, 72, 153, 0.1);
     }
 
-    /* Text Color when Selected */
+    /* Selected Text Color */
     [data-testid="stSidebar"] [data-testid="stRadio"] label:has(input:checked) p {
-        color: #fff !important;
+        color: white !important;
         font-weight: 700;
         letter-spacing: 0.5px;
-        text-shadow: 0 0 8px rgba(236, 72, 153, 0.6);
     }
 
     /* --- OTHER UI ELEMENTS --- */
@@ -652,7 +653,6 @@ else:
     st.sidebar.markdown("<br>", unsafe_allow_html=True)
     
     # Navigation
-    st.sidebar.markdown('<div style="color: #71717a; font-size: 11px; font-weight: 700; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 1px;">Navigation</div>', unsafe_allow_html=True)
     
     nav_opts = ["Dashboard", "My Desk", "Team Calendar", "3PL Logistics", "Team & Reports", "Inventory & SOPs", "AI Assistant 🤖"]
     page = st.sidebar.radio("Navigation", nav_opts, label_visibility="collapsed")
