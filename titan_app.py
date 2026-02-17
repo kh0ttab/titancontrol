@@ -38,19 +38,26 @@ def init_db():
                     is_admin BOOLEAN
                 )''')
     
-    # 2. Tasks
+    # 2. Tasks (Updated with company & timer)
     c.execute('''CREATE TABLE IF NOT EXISTS tasks (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     title TEXT,
                     assignee TEXT,
+                    company TEXT,
                     category TEXT,
                     priority TEXT,
                     status TEXT,
                     planned_date TEXT,
-                    est_time REAL,
+                    timer_start TEXT, -- Stores timestamp when started
                     act_time REAL,
                     notes TEXT
                 )''')
+    
+    # Ensure new columns exist if DB already created
+    try: c.execute("ALTER TABLE tasks ADD COLUMN company TEXT")
+    except: pass
+    try: c.execute("ALTER TABLE tasks ADD COLUMN timer_start TEXT")
+    except: pass
                 
     # 3. Shipments
     c.execute('''CREATE TABLE IF NOT EXISTS shipments (
@@ -64,22 +71,52 @@ def init_db():
                     tracking TEXT
                 )''')
 
-    # 4. Work Logs (New for Employee Control)
+    # 4. Work Logs
     c.execute('''CREATE TABLE IF NOT EXISTS work_logs (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     username TEXT,
-                    event_type TEXT, -- 'CLOCK_IN' or 'CLOCK_OUT'
+                    event_type TEXT,
                     timestamp TEXT
                 )''')
     
-    # Create Admin if empty
+    # 5. Companies (New)
+    c.execute('''CREATE TABLE IF NOT EXISTS companies (
+                    name TEXT PRIMARY KEY
+                )''')
+    
+    # Seed Default Data
+    # Admin / CEO
     c.execute("SELECT * FROM users WHERE username = 'admin'")
     if not c.fetchone():
         pwd_hash = hashlib.sha256("123".encode()).hexdigest()
         c.execute("INSERT INTO users VALUES (?, ?, ?, ?, ?, ?)", 
                   ('admin', pwd_hash, 'Big Boss', 'CEO', '🦁', True))
+    
+    # Account Manager
+    c.execute("SELECT * FROM users WHERE username = 'alex'")
+    if not c.fetchone():
+        pwd_hash = hashlib.sha256("123".encode()).hexdigest()
         c.execute("INSERT INTO users VALUES (?, ?, ?, ?, ?, ?)", 
                   ('alex', pwd_hash, 'Alex', 'Account Manager', '👨‍💻', False))
+
+    # Researcher
+    c.execute("SELECT * FROM users WHERE username = 'sarah'")
+    if not c.fetchone():
+        pwd_hash = hashlib.sha256("123".encode()).hexdigest()
+        c.execute("INSERT INTO users VALUES (?, ?, ?, ?, ?, ?)", 
+                  ('sarah', pwd_hash, 'Sarah', 'Researcher', '🔎', False))
+
+    # Warehouse Labour
+    c.execute("SELECT * FROM users WHERE username = 'mike'")
+    if not c.fetchone():
+        pwd_hash = hashlib.sha256("123".encode()).hexdigest()
+        c.execute("INSERT INTO users VALUES (?, ?, ?, ?, ?, ?)", 
+                  ('mike', pwd_hash, 'Mike', 'Warehouse Labour', '📦', False))
+    
+    # Default Companies
+    c.execute("INSERT OR IGNORE INTO companies VALUES ('Internal')")
+    c.execute("INSERT OR IGNORE INTO companies VALUES ('Client A')")
+    c.execute("INSERT OR IGNORE INTO companies VALUES ('Client B')")
         
     conn.commit()
     conn.close()
@@ -146,7 +183,6 @@ def get_last_work_event(username):
     return res
 
 def get_live_workers():
-    # Logic: Get last event for each user. If 'CLOCK_IN', they are working.
     users = get_all_users()
     active_workers = []
     for _, u in users.iterrows():
@@ -161,7 +197,25 @@ def get_work_logs():
     conn.close()
     return df
 
-# --- DATA FUNCTIONS ---
+# --- COMPANY FUNCTIONS ---
+def get_companies():
+    conn = get_db()
+    df = pd.read_sql("SELECT name FROM companies", conn)
+    conn.close()
+    return df['name'].tolist()
+
+def add_company(name):
+    conn = get_db()
+    try:
+        conn.execute("INSERT INTO companies VALUES (?)", (name,))
+        conn.commit()
+        return True
+    except:
+        return False
+    finally:
+        conn.close()
+
+# --- TASK FUNCTIONS ---
 def get_tasks():
     conn = get_db()
     conn.row_factory = sqlite3.Row
@@ -171,19 +225,46 @@ def get_tasks():
     conn.close()
     return rows
 
-def add_task(title, assignee, category, est_time):
+def add_task(title, assignee, company, category):
     conn = get_db()
-    conn.execute("INSERT INTO tasks (title, assignee, category, priority, status, planned_date, est_time, act_time) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                 (title, assignee, category, "Medium", "To Do", str(datetime.date.today()), est_time, 0.0))
+    # est_time removed, timer_start is NULL initially, act_time 0.0
+    conn.execute("INSERT INTO tasks (title, assignee, company, category, priority, status, planned_date, est_time, act_time) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                 (title, assignee, company, category, "Medium", "To Do", str(datetime.date.today()), 0.0, 0.0))
     conn.commit()
     conn.close()
 
-def update_task(task_id, status, act_time):
+def update_task(task_id, status, assignee, act_time):
     conn = get_db()
-    conn.execute("UPDATE tasks SET status=?, act_time=? WHERE id=?", (status, act_time, task_id))
+    conn.execute("UPDATE tasks SET status=?, assignee=?, act_time=? WHERE id=?", (status, assignee, act_time, task_id))
     conn.commit()
     conn.close()
 
+def toggle_task_timer(task_id):
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("SELECT timer_start, act_time FROM tasks WHERE id=?", (task_id,))
+    row = c.fetchone()
+    
+    if row:
+        start_ts, current_act = row
+        current_act = current_act if current_act else 0.0
+        
+        if start_ts: # Stop Timer
+            start_dt = datetime.datetime.strptime(start_ts, "%Y-%m-%d %H:%M:%S")
+            now = datetime.datetime.now()
+            diff_hours = (now - start_dt).total_seconds() / 3600.0
+            new_act = current_act + diff_hours
+            c.execute("UPDATE tasks SET timer_start=NULL, act_time=?, status='Done' WHERE id=?", (new_act, task_id))
+            st.toast(f"Timer Stopped. Added {diff_hours:.2f} hours.")
+        else: # Start Timer
+            now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            c.execute("UPDATE tasks SET timer_start=?, status='In Progress' WHERE id=?", (now_str, task_id))
+            st.toast("Timer Started!")
+            
+    conn.commit()
+    conn.close()
+
+# --- SHIPMENT FUNCTIONS ---
 def get_shipments():
     conn = get_db()
     conn.row_factory = sqlite3.Row
@@ -276,12 +357,10 @@ st.markdown("""
     div.stButton > button:hover {
         box-shadow: 0 0 15px rgba(236, 72, 153, 0.5);
     }
-
-    /* Status Badges */
-    .badge { padding: 4px 8px; border-radius: 12px; font-size: 11px; font-weight: 700; text-transform: uppercase; }
-    .b-green { background: rgba(16, 185, 129, 0.2); color: #6ee7b7; border: 1px solid rgba(16, 185, 129, 0.3); }
-    .b-blue { background: rgba(59, 130, 246, 0.2); color: #93c5fd; border: 1px solid rgba(59, 130, 246, 0.3); }
-    .b-red { background: rgba(239, 68, 68, 0.2); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.3); }
+    
+    .status-badge {
+        padding: 4px 10px; border-radius:12px; font-weight:bold; font-size:12px; text-transform:uppercase;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -317,7 +396,7 @@ def login():
                     safe_rerun()
                 else:
                     st.error("Access Denied")
-        st.info("Demo: admin / 123")
+        st.info("Default: admin / 123")
 
 if not st.session_state.authenticated:
     login()
@@ -361,9 +440,8 @@ else:
     st.sidebar.markdown("---")
     
     nav_opts = ["Dashboard", "My Desk", "3PL Logistics", "Team & Reports", "AI Assistant 🤖"]
-    if not user['is_admin']:
-        nav_opts = ["My Desk", "3PL Logistics", "AI Assistant 🤖"]
-        
+    # All employees have access to these, Role based hiding can be added inside pages if needed
+    
     page = st.sidebar.radio("NAVIGATION", nav_opts)
     
     st.sidebar.markdown("---")
@@ -422,50 +500,85 @@ else:
                 # Assignee Dropdown
                 users = get_all_users()
                 names = users['name'].tolist()
-                try:
-                    def_idx = names.index(user['name'])
+                try: def_idx = names.index(user['name'])
                 except: def_idx = 0
                 assignee = c2.selectbox("Assign To", names, index=def_idx)
                 
                 c3, c4 = st.columns(2)
-                cat = c3.selectbox("Category", ["Admin", "Sales", "Logistics", "IT"])
-                est = c4.number_input("Est Hours", 0.5, 100.0, 1.0)
+                # Companies Dropdown
+                comps = get_companies()
+                if not comps: comps = ["Internal"]
+                comp = c3.selectbox("Company", comps)
+                cat = c4.selectbox("Category", ["Admin", "Sales", "Logistics", "IT", "Research"])
+                
+                # Removed Est Time input as requested
                 
                 if st.form_submit_button("Create Task", type="primary"):
-                    add_task(title, assignee, cat, est)
+                    add_task(title, assignee, comp, cat)
                     st.success("Task Created")
                     safe_rerun()
         
         # Task List
         tasks = get_tasks()
-        my_tasks = [t for t in tasks if user['is_admin'] or t['assignee'] == user['name']]
+        # Filter (optional: user['is_admin'] or t['assignee'] == user['name'])
+        # Current logic: Everyone sees tasks assigned to them OR if they are admin.
+        # "so everybody can assign new employee" implies somewhat shared visibility.
+        my_tasks = [t for t in tasks if user['is_admin'] or t['assignee'] == user['name'] or True] # Showing all tasks for collaboration
         
         for t in my_tasks:
             with st.container():
                 # Edit Mode for Task
-                c_card, c_edit = st.columns([4, 1])
+                c_card, c_timer, c_edit = st.columns([5, 2, 1])
                 
                 with c_card:
-                    badge = "b-green" if t['status'] == 'Done' else "b-blue"
+                    timer_active = t['timer_start'] is not None
+                    border_color = "#ec4899" if timer_active else ("#4ade80" if t['status']=='Done' else "rgba(255,255,255,0.1)")
+                    
                     st.markdown(f"""
-                    <div class="titan-card" style="padding: 15px; margin-bottom: 5px;">
+                    <div class="titan-card" style="padding: 15px; margin-bottom: 5px; border: 1px solid {border_color};">
                         <div style="display:flex; justify-content:space-between; align-items:center;">
                             <div style="font-size:16px; font-weight:bold;">{t['title']}</div>
-                            <span class="badge {badge}">{t['status']}</span>
+                            <div style="font-size:11px; font-weight:bold; color:#a1a1aa; background:rgba(255,255,255,0.1); padding:2px 8px; border-radius:4px;">{t['company']}</div>
                         </div>
-                        <div style="font-size:12px; color:#a1a1aa; margin-top:5px;">
-                            {t['assignee']} • {t['category']} • Est: {t['est_time']}h
+                        <div style="font-size:12px; color:#a1a1aa; margin-top:5px; display:flex; gap:10px;">
+                            <span>👤 {t['assignee']}</span>
+                            <span>📂 {t['category']}</span>
+                            <span style="color:{'#ec4899' if timer_active else 'white'}">⏱️ {t['act_time']:.2f}h Logged</span>
                         </div>
                     </div>
                     """, unsafe_allow_html=True)
                 
+                with c_timer:
+                    # Timer Controls
+                    if t['status'] != 'Done':
+                        if t['timer_start']:
+                            st.markdown(f"<div style='color:#ec4899; font-size:12px; text-align:center;'>Running...</div>", unsafe_allow_html=True)
+                            if st.button("⏹ Stop", key=f"stop_{t['id']}", use_container_width=True):
+                                toggle_task_timer(t['id'])
+                                safe_rerun()
+                        else:
+                            st.markdown(f"<div style='height:18px;'></div>", unsafe_allow_html=True)
+                            if st.button("▶ Start", key=f"start_{t['id']}", use_container_width=True):
+                                toggle_task_timer(t['id'])
+                                safe_rerun()
+                
                 # Edit Controls
                 with c_edit:
-                    with st.popover("Edit"):
-                        n_stat = st.selectbox("Status", ["To Do", "In Progress", "Done"], key=f"s_{t['id']}")
-                        n_time = st.number_input("Actual Time Used", value=t['act_time'], key=f"t_{t['id']}")
-                        if st.button("Update", key=f"up_{t['id']}"):
-                            update_task(t['id'], n_stat, n_time)
+                    st.markdown(f"<div style='height:18px;'></div>", unsafe_allow_html=True)
+                    with st.popover("✏️"):
+                        # Re-assign Feature
+                        users = get_all_users()
+                        user_list = users['name'].tolist()
+                        try: curr_idx = user_list.index(t['assignee'])
+                        except: curr_idx = 0
+                        
+                        n_assignee = st.selectbox("Re-Assign To", user_list, index=curr_idx, key=f"as_{t['id']}")
+                        n_stat = st.selectbox("Status", ["To Do", "In Progress", "Done"], index=["To Do", "In Progress", "Done"].index(t['status']), key=f"s_{t['id']}")
+                        n_time = st.number_input("Adjust Time (Hrs)", value=t['act_time'], key=f"t_{t['id']}")
+                        
+                        if st.button("Update Task", key=f"up_{t['id']}"):
+                            update_task(t['id'], n_stat, n_assignee, n_time)
+                            st.success("Updated")
                             safe_rerun()
 
     # --- PAGE: 3PL LOGISTICS ---
@@ -523,7 +636,7 @@ else:
     elif page == "Team & Reports":
         st.markdown("# 👥 Team & Reports")
         
-        tab1, tab2, tab3 = st.tabs(["Manage Employees", "Work Logs", "Data Export"])
+        tab1, tab2, tab3, tab4 = st.tabs(["Manage Employees", "Manage Companies", "Work Logs", "Data Export"])
         
         with tab1:
             c1, c2 = st.columns([1, 2])
@@ -533,7 +646,7 @@ else:
                     nu = st.text_input("Username")
                     np = st.text_input("Password", type="password")
                     nn = st.text_input("Name")
-                    nr = st.selectbox("Role", ["Staff", "Manager"])
+                    nr = st.selectbox("Role", ["Account Manager", "Researcher", "Warehouse Labour", "CEO"])
                     if st.form_submit_button("Create"):
                         create_user(nu, np, nn, nr, False)
                         st.success("User Added")
@@ -542,11 +655,25 @@ else:
                 st.dataframe(get_all_users()[['name', 'role', 'username']], use_container_width=True)
         
         with tab2:
+            st.markdown("### 🏢 Companies")
+            c1, c2 = st.columns([1, 2])
+            with c1:
+                with st.form("add_comp"):
+                    nc = st.text_input("Company Name")
+                    if st.form_submit_button("Add Company"):
+                        if add_company(nc):
+                            st.success("Added")
+                            safe_rerun()
+                        else: st.error("Exists or Error")
+            with c2:
+                st.dataframe(pd.DataFrame(get_companies(), columns=["Company Name"]), use_container_width=True)
+
+        with tab3:
             st.markdown("### 🕒 Employee Time Logs")
             logs = get_work_logs()
             st.dataframe(logs, use_container_width=True)
         
-        with tab3:
+        with tab4:
             st.markdown("### 💾 Export Data")
             c1, c2 = st.columns(2)
             
