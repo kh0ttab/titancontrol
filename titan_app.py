@@ -358,7 +358,8 @@ def rate_task(task_id, rating, feedback):
     conn.commit()
     conn.close()
 
-def toggle_task_timer(task_id):
+def handle_task_timer(task_id, action):
+    """Handles Start, Pause, and Stop explicitly without toggle ambiguity"""
     conn = get_db()
     c = conn.cursor()
     c.execute("SELECT timer_start, act_time FROM tasks WHERE id=?", (task_id,))
@@ -368,16 +369,23 @@ def toggle_task_timer(task_id):
         start_ts, current_act = row
         current_act = current_act if current_act else 0.0
         
-        if start_ts: # Stop
+        if start_ts and action in ['pause', 'stop']:
             start_dt = datetime.datetime.strptime(start_ts, "%Y-%m-%d %H:%M:%S")
             diff_hours = (datetime.datetime.now() - start_dt).total_seconds() / 3600.0
             new_act = current_act + diff_hours
-            c.execute("UPDATE tasks SET timer_start=NULL, act_time=?, status='Done' WHERE id=?", (new_act, task_id))
-            st.toast(f"Timer Stopped. Added {diff_hours:.2f} hours.")
-        else: # Start
+            
+            if action == 'pause':
+                c.execute("UPDATE tasks SET timer_start=NULL, act_time=? WHERE id=?", (new_act, task_id))
+                st.toast(f"Timer Paused. Added {diff_hours:.2f} hours.")
+            elif action == 'stop':
+                c.execute("UPDATE tasks SET timer_start=NULL, act_time=?, status='Done' WHERE id=?", (new_act, task_id))
+                st.toast(f"Task Completed! Added {diff_hours:.2f} hours.")
+                
+        elif not start_ts and action == 'start':
             now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             c.execute("UPDATE tasks SET timer_start=?, status='In Progress' WHERE id=?", (now_str, task_id))
             st.toast("Timer Started!")
+            
     conn.commit()
     conn.close()
 
@@ -433,7 +441,7 @@ st.markdown("""
 
     /* --- SIDEBAR GLASS (SEAMLESS & FLUID) --- */
     [data-testid="stSidebar"] {
-        background: rgba(13, 17, 30, 0.55) !important; /* Deep, beautifully translucent navy */
+        background: rgba(13, 17, 30, 0.55) !important; 
         backdrop-filter: blur(24px) !important;
         -webkit-backdrop-filter: blur(24px) !important;
         border-right: 1px solid rgba(255, 255, 255, 0.05) !important;
@@ -448,7 +456,7 @@ st.markdown("""
         letter-spacing: 1.5px;
         margin-bottom: 8px;
         margin-top: 15px;
-        padding-left: 14px; /* Align beautifully with the tiles */
+        padding-left: 14px; 
     }
 
     /* --- NAVIGATION MENU TILES (FLUID LEFT-ALIGNED UI) --- */
@@ -456,34 +464,34 @@ st.markdown("""
     [data-testid="stSidebar"] [data-testid="stRadio"] > label { display: none !important; }
     [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] { 
         gap: 2px; 
-        padding: 0 10px; /* Breathing room */
+        padding: 0 10px; 
     }
 
     /* Unselected Tile */
     [data-testid="stSidebar"] [data-testid="stRadio"] label {
         background: transparent !important; 
-        border: none !important; /* Removed the ugly blocky borders */
+        border: none !important; 
         border-radius: 8px !important;
         padding: 12px 14px !important;
         margin-bottom: 2px !important;
         transition: all 0.3s ease !important;
         display: flex;
         align-items: center;
-        justify-content: flex-start !important; /* Proper left alignment */
+        justify-content: flex-start !important; 
         width: 100% !important;
         box-shadow: none !important;
         cursor: pointer;
     }
     
     [data-testid="stSidebar"] [data-testid="stRadio"] label:hover {
-        background: rgba(255, 255, 255, 0.04) !important; /* Subtle frosted hover */
-        transform: translateX(4px); /* Smooth slight indent */
+        background: rgba(255, 255, 255, 0.04) !important; 
+        transform: translateX(4px); 
     }
 
-    /* Selected Tile (Fluid glowing highlight) */
+    /* Selected Tile */
     [data-testid="stSidebar"] [data-testid="stRadio"] label:has(input:checked) {
         background: linear-gradient(90deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.01) 100%) !important; 
-        box-shadow: inset 3px 0 0 0 #17D29F !important; /* Elegant Teal Left Border */
+        box-shadow: inset 3px 0 0 0 #17D29F !important; 
         border-radius: 4px 8px 8px 4px !important;
         transform: translateX(4px);
     }
@@ -513,7 +521,7 @@ st.markdown("""
         background: linear-gradient(90deg, rgba(61,97,255,0.9), rgba(23,210,159,0.9)) !important;
         border-radius: 8px !important; 
         padding: 8px 20px !important;
-        width: calc(100% - 20px) !important; /* Full width minus margin */
+        width: calc(100% - 20px) !important; 
         margin: 5px 10px 15px 10px !important;
         font-weight: 600 !important;
         font-size: 14px !important;
@@ -534,40 +542,40 @@ st.markdown("""
         100% { box-shadow: 0 0 0 0 rgba(23, 210, 159, 0); }
     }
 
-    /* --- DASHBOARD TILES (Secondary Buttons) --- */
+    /* --- SECONDARY BUTTONS (Solid & Neat UI - NO GLASS) --- */
     div.stButton > button[kind="secondary"] {
-        background: rgba(255, 255, 255, 0.1);
-        backdrop-filter: blur(16px);
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        color: white;
-        height: 110px;
+        background: #1e293b; /* Solid elegant slate blue */
+        border: 1px solid #334155;
+        color: #f8fafc;
+        border-radius: 6px; /* Neat corners */
+        transition: all 0.2s ease;
+        padding: 6px 14px;
         white-space: pre-wrap;
-        border-radius: 16px;
-        transition: all 0.3s;
-        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
     div.stButton > button[kind="secondary"]:hover {
-        background: rgba(255, 255, 255, 0.2);
-        transform: translateY(-4px);
-        border-color: #17D29F; /* Teal accent */
-        box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.3);
+        background: #334155; /* Slightly lighter solid */
+        border-color: #475569;
+        transform: translateY(-1px);
+        color: white;
     }
     
-    /* --- PRIMARY BUTTONS (Actions - Main Area) --- */
+    /* --- PRIMARY BUTTONS (Main Action UI - NO GLASS) --- */
     .main div.stButton > button[kind="primary"] {
-        background: #3D61FF; 
-        border: none;
+        background: #ef4444; /* Vivid neat red for standard stop/create actions */
+        border: 1px solid #dc2626;
         color: white;
-        border-radius: 30px; 
-        font-weight: 700;
-        letter-spacing: 0.5px;
-        box-shadow: 0 4px 15px rgba(61, 97, 255, 0.4);
-        transition: all 0.3s ease;
+        border-radius: 6px; 
+        font-weight: 600;
+        letter-spacing: 0.2px;
+        transition: all 0.2s ease;
+        box-shadow: 0 2px 6px rgba(239, 68, 68, 0.3);
     }
     .main div.stButton > button[kind="primary"]:hover {
-        background: #17D29F; 
-        box-shadow: 0 4px 15px rgba(23, 210, 159, 0.5);
-        transform: translateY(-2px);
+        background: #dc2626; 
+        border-color: #b91c1c;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 10px rgba(239, 68, 68, 0.4);
     }
 
     /* --- TITAN ELEMENTS --- */
@@ -579,12 +587,12 @@ st.markdown("""
     }
     .titan-card {
         background: rgba(255, 255, 255, 0.08); backdrop-filter: blur(16px);
-        border-radius: 20px; border: 1px solid rgba(255, 255, 255, 0.15);
-        padding: 24px; box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2); margin-bottom: 15px;
+        border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.12);
+        padding: 24px; box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.1); margin-bottom: 15px;
     }
     .stTextInput input, .stSelectbox div[data-baseweb="select"] > div, .stNumberInput input {
-        background-color: rgba(0, 0, 0, 0.25) !important; color: white !important;
-        border: 1px solid rgba(255, 255, 255, 0.2) !important; border-radius: 12px !important;
+        background-color: rgba(15, 23, 42, 0.6) !important; color: white !important;
+        border: 1px solid rgba(255, 255, 255, 0.15) !important; border-radius: 8px !important;
     }
     /* Style Tabs to look modern */
     .stTabs [data-baseweb="tab-list"] { background-color: transparent; gap: 20px; }
@@ -757,12 +765,16 @@ else:
                     if t['status'] != 'Done':
                         if t['timer_start']:
                             st.info("Timer is RUNNING")
-                            if st.button("⏹ Stop Timer", key="det_stop", type="primary"):
-                                toggle_task_timer(t['id'])
+                            tc1, tc2 = st.columns(2)
+                            if tc1.button("⏸ Pause Timer", key="det_pause", type="secondary", use_container_width=True):
+                                handle_task_timer(t['id'], 'pause')
+                                safe_rerun()
+                            if tc2.button("⏹ Stop & Finish", key="det_stop", type="primary", use_container_width=True):
+                                handle_task_timer(t['id'], 'stop')
                                 safe_rerun()
                         else:
-                            if st.button("▶ Start Timer", key="det_start", type="primary"):
-                                toggle_task_timer(t['id'])
+                            if st.button("▶ Start Timer", key="det_start", type="secondary", use_container_width=True):
+                                handle_task_timer(t['id'], 'start')
                                 safe_rerun()
 
                 with c2:
@@ -936,7 +948,7 @@ else:
                 
                 with c_card:
                     timer_active = t['timer_start'] is not None
-                    border_color = "#3D61FF" if timer_active else ("#17D29F" if t['status']=='Done' else "rgba(255,255,255,0.2)")
+                    border_color = "#3D61FF" if timer_active else ("#17D29F" if t['status']=='Done' else "rgba(255,255,255,0.08)")
                     rating_html = f"<span style='color:#fbbf24; margin-left:10px;'>{'★'*t['rating']}</span>" if t['rating'] else ""
                     
                     st.markdown(f"""
@@ -956,14 +968,18 @@ else:
                 with c_timer:
                     if t['status'] != 'Done':
                         if t['timer_start']:
-                            st.markdown(f"<div style='color:#17D29F; font-size:12px; text-align:center;'>Running...</div>", unsafe_allow_html=True)
-                            if st.button("⏹ Stop", key=f"stop_{t['id']}", use_container_width=True):
-                                toggle_task_timer(t['id'])
+                            st.markdown(f"<div style='color:#17D29F; font-size:12px; text-align:center; padding-bottom: 5px;'>Running...</div>", unsafe_allow_html=True)
+                            tc1, tc2 = st.columns(2)
+                            if tc1.button("⏸ Pause", key=f"pause_{t['id']}", help="Pause without finishing", type="secondary", use_container_width=True):
+                                handle_task_timer(t['id'], 'pause')
+                                safe_rerun()
+                            if tc2.button("⏹ Stop", key=f"stop_{t['id']}", help="Stop and Mark Done", type="primary", use_container_width=True):
+                                handle_task_timer(t['id'], 'stop')
                                 safe_rerun()
                         else:
-                            st.markdown(f"<div style='height:18px;'></div>", unsafe_allow_html=True)
-                            if st.button("▶ Start", key=f"start_{t['id']}", use_container_width=True):
-                                toggle_task_timer(t['id'])
+                            st.markdown(f"<div style='height:24px;'></div>", unsafe_allow_html=True)
+                            if st.button("▶ Start", key=f"start_{t['id']}", type="secondary", use_container_width=True):
+                                handle_task_timer(t['id'], 'start')
                                 safe_rerun()
                     else:
                         if user['is_admin'] and not t['rating']:
@@ -976,7 +992,7 @@ else:
                                     safe_rerun()
                 
                 with c_edit:
-                    st.markdown(f"<div style='height:18px;'></div>", unsafe_allow_html=True)
+                    st.markdown(f"<div style='height:24px;'></div>", unsafe_allow_html=True)
                     with st.popover("✏️"):
                         users = get_all_users()
                         user_list = users['name'].tolist()
@@ -985,12 +1001,12 @@ else:
                         n_assignee = st.selectbox("Re-Assign", user_list, index=curr_idx, key=f"as_{t['id']}")
                         n_stat = st.selectbox("Status", ["To Do", "In Progress", "Done"], index=["To Do", "In Progress", "Done"].index(t['status']), key=f"s_{t['id']}")
                         n_time = st.number_input("Time (Hrs)", value=t['act_time'], key=f"t_{t['id']}")
-                        if st.button("Update", key=f"up_{t['id']}"):
+                        if st.button("Update", key=f"up_{t['id']}", type="primary"):
                             update_task(t['id'], n_stat, n_assignee, n_time)
                             safe_rerun()
                 
                 with c_comment:
-                    st.markdown(f"<div style='height:18px;'></div>", unsafe_allow_html=True)
+                    st.markdown(f"<div style='height:24px;'></div>", unsafe_allow_html=True)
                     with st.popover("💬"):
                         st.markdown("**Comments**")
                         comments = get_comments(t['id'])
@@ -999,7 +1015,7 @@ else:
                             st.divider()
                         
                         new_c = st.text_input("Add comment", key=f"nc_{t['id']}")
-                        if st.button("Post", key=f"pc_{t['id']}"):
+                        if st.button("Post", key=f"pc_{t['id']}", type="secondary"):
                             add_comment(t['id'], user['name'], new_c)
                             safe_rerun()
 
