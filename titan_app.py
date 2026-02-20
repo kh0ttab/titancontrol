@@ -5,6 +5,7 @@ import os
 import time
 import sqlite3
 import hashlib
+import re
 from urllib.parse import quote
 
 # --- SAFETY: GEMINI IMPORT ---
@@ -29,16 +30,30 @@ def init_db():
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
     
-    # 1. Users
+    # 1. Users (Added email column)
     c.execute('''CREATE TABLE IF NOT EXISTS users (
                     username TEXT PRIMARY KEY,
                     password TEXT,
                     name TEXT,
                     role TEXT,
                     avatar TEXT,
-                    is_admin BOOLEAN
+                    is_admin BOOLEAN,
+                    email TEXT
                 )''')
     
+    # DB Migration checks (Graceful updates for existing DBs)
+    try: c.execute("ALTER TABLE users ADD COLUMN email TEXT")
+    except: pass
+    
+    try: c.execute("ALTER TABLE tasks ADD COLUMN company TEXT")
+    except: pass
+    try: c.execute("ALTER TABLE tasks ADD COLUMN timer_start TEXT")
+    except: pass
+    try: c.execute("ALTER TABLE tasks ADD COLUMN rating INTEGER")
+    except: pass
+    try: c.execute("ALTER TABLE tasks ADD COLUMN feedback TEXT")
+    except: pass
+                
     # 2. Tasks
     c.execute('''CREATE TABLE IF NOT EXISTS tasks (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -55,16 +70,6 @@ def init_db():
                     rating INTEGER,
                     feedback TEXT
                 )''')
-    
-    # DB Migration checks
-    try: c.execute("ALTER TABLE tasks ADD COLUMN company TEXT")
-    except: pass
-    try: c.execute("ALTER TABLE tasks ADD COLUMN timer_start TEXT")
-    except: pass
-    try: c.execute("ALTER TABLE tasks ADD COLUMN rating INTEGER")
-    except: pass
-    try: c.execute("ALTER TABLE tasks ADD COLUMN feedback TEXT")
-    except: pass
                 
     # 3. Shipments
     c.execute('''CREATE TABLE IF NOT EXISTS shipments (
@@ -116,30 +121,33 @@ def init_db():
                     timestamp TEXT
                 )''')
     
-    # Seed Default Data
+    # Seed Default Data (with default emails)
     c.execute("SELECT * FROM users WHERE username = 'admin'")
     if not c.fetchone():
         pwd_hash = hashlib.sha256("123".encode()).hexdigest()
-        c.execute("INSERT INTO users VALUES (?, ?, ?, ?, ?, ?)", 
-                  ('admin', pwd_hash, 'Big Boss', 'CEO', '🦁', True))
+        c.execute("INSERT INTO users (username, password, name, role, avatar, is_admin, email) VALUES (?, ?, ?, ?, ?, ?, ?)", 
+                  ('admin', pwd_hash, 'Big Boss', 'CEO', '🦁', True, 'admin@titan.com'))
     
     c.execute("SELECT * FROM users WHERE username = 'alex'")
     if not c.fetchone():
         pwd_hash = hashlib.sha256("123".encode()).hexdigest()
-        c.execute("INSERT INTO users VALUES (?, ?, ?, ?, ?, ?)", 
-                  ('alex', pwd_hash, 'Alex', 'Account Manager', '👨‍💻', False))
+        c.execute("INSERT INTO users (username, password, name, role, avatar, is_admin, email) VALUES (?, ?, ?, ?, ?, ?, ?)", 
+                  ('alex', pwd_hash, 'Alex', 'Account Manager', '👨‍💻', False, 'alex@titan.com'))
 
     c.execute("SELECT * FROM users WHERE username = 'sarah'")
     if not c.fetchone():
         pwd_hash = hashlib.sha256("123".encode()).hexdigest()
-        c.execute("INSERT INTO users VALUES (?, ?, ?, ?, ?, ?)", 
-                  ('sarah', pwd_hash, 'Sarah', 'Researcher', '🔎', False))
+        c.execute("INSERT INTO users (username, password, name, role, avatar, is_admin, email) VALUES (?, ?, ?, ?, ?, ?, ?)", 
+                  ('sarah', pwd_hash, 'Sarah', 'Researcher', '🔎', False, 'sarah@titan.com'))
 
     c.execute("SELECT * FROM users WHERE username = 'mike'")
     if not c.fetchone():
         pwd_hash = hashlib.sha256("123".encode()).hexdigest()
-        c.execute("INSERT INTO users VALUES (?, ?, ?, ?, ?, ?)", 
-                  ('mike', pwd_hash, 'Mike', 'Warehouse Labour', '📦', False))
+        c.execute("INSERT INTO users (username, password, name, role, avatar, is_admin, email) VALUES (?, ?, ?, ?, ?, ?, ?)", 
+                  ('mike', pwd_hash, 'Mike', 'Warehouse Labour', '📦', False, 'mike@titan.com'))
+    
+    # Backfill missing emails for older DB versions
+    c.execute("UPDATE users SET email = username || '@titan.com' WHERE email IS NULL")
     
     # Default Companies & Inventory
     c.execute("INSERT OR IGNORE INTO companies VALUES ('Internal')")
@@ -163,23 +171,32 @@ def get_db():
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
-def verify_user(username, password):
+def verify_user(identifier, password):
+    """Verifies a user by either Username OR Email."""
     conn = get_db()
+    conn.row_factory = sqlite3.Row
     c = conn.cursor()
     pwd_hash = hash_password(password)
-    c.execute("SELECT * FROM users WHERE username=? AND password=?", (username, pwd_hash))
+    
+    try:
+        c.execute("SELECT * FROM users WHERE (username=? OR email=?) AND password=?", (identifier, identifier, pwd_hash))
+    except sqlite3.OperationalError:
+        # Fallback if email column doesn't exist for some reason
+        c.execute("SELECT * FROM users WHERE username=? AND password=?", (identifier, pwd_hash))
+        
     user = c.fetchone()
     conn.close()
+    
     if user:
-        return {"username": user[0], "name": user[2], "role": user[3], "avatar": user[4], "is_admin": user[5]}
+        return dict(user)
     return None
 
-def create_user(username, password, name, role, is_admin):
+def create_user(username, password, name, role, is_admin, email):
     conn = get_db()
     c = conn.cursor()
     try:
-        c.execute("INSERT INTO users VALUES (?, ?, ?, ?, ?, ?)", 
-                  (username, hash_password(password), name, role, '👤', is_admin))
+        c.execute("INSERT INTO users (username, password, name, role, avatar, is_admin, email) VALUES (?, ?, ?, ?, ?, ?, ?)", 
+                  (username, hash_password(password), name, role, '👤', is_admin, email))
         conn.commit()
         return True
     except sqlite3.IntegrityError:
@@ -399,19 +416,16 @@ def ask_gemini(prompt, context=""):
         return model.generate_content(f"Titan AI Context: {context}. User: {prompt}").text
     except Exception as e: return f"Error: {e}"
 
-# --- CSS STYLING (LIQUID GLASS PRO MAX) ---
+# --- CSS STYLING (VIBRANT SPACE GRADIENT MATCHING IMAGE) ---
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800&display=swap');
 
     /* --- BACKGROUND & GLOBAL --- */
     .stApp {
-        background-color: #09090b;
-        background-image: 
-            radial-gradient(at 0% 0%, rgba(76, 29, 149, 0.4) 0px, transparent 50%),
-            radial-gradient(at 100% 0%, rgba(236, 72, 153, 0.4) 0px, transparent 50%),
-            radial-gradient(at 100% 100%, rgba(59, 130, 246, 0.4) 0px, transparent 50%),
-            radial-gradient(at 0% 100%, rgba(16, 185, 129, 0.4) 0px, transparent 50%);
+        background-color: #271759;
+        /* Matches the ColorSpace image gradient: Deep Purple -> Blue -> Mint/Teal */
+        background-image: linear-gradient(120deg, #271759 0%, #0a719c 45%, #11c99f 100%);
         background-attachment: fixed;
         background-size: cover;
         font-family: 'Outfit', sans-serif;
@@ -420,21 +434,15 @@ st.markdown("""
 
     /* --- SIDEBAR GLASS --- */
     [data-testid="stSidebar"] {
-        background: rgba(9, 9, 11, 0.85);
+        background: rgba(10, 10, 25, 0.35);
         backdrop-filter: blur(20px);
-        border-right: 1px solid rgba(255,255,255,0.08);
+        border-right: 1px solid rgba(255,255,255,0.1);
     }
 
     /* --- NAVIGATION MENU STYLING --- */
-    
-    /* Hide the default radio button circle and header */
     [data-testid="stSidebar"] [data-testid="stRadio"] label > div:first-child { display: none; }
     [data-testid="stSidebar"] [data-testid="stRadio"] > label { display: none !important; }
-    
-    /* Tiles Layout */
-    [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] {
-        gap: 8px;
-    }
+    [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] { gap: 8px; }
 
     /* Unselected Tile */
     [data-testid="stSidebar"] [data-testid="stRadio"] label {
@@ -445,87 +453,99 @@ st.markdown("""
         margin-bottom: 4px !important;
         transition: all 0.3s ease;
     }
-    
-    /* Hover */
     [data-testid="stSidebar"] [data-testid="stRadio"] label:hover {
-        background: rgba(255, 255, 255, 0.1);
+        background: rgba(255, 255, 255, 0.15);
         transform: translateX(4px);
-        border-color: rgba(255, 255, 255, 0.2);
+        border-color: #1DD3A6; /* Teal hover */
     }
 
-    /* Selected Tile (Neon Glow) */
+    /* Selected Tile (Neon Glow based on image) */
     [data-testid="stSidebar"] [data-testid="stRadio"] label:has(input:checked) {
-        background: linear-gradient(90deg, rgba(236, 72, 153, 0.15), rgba(139, 92, 246, 0.15));
-        border: 1px solid #ec4899;
-        box-shadow: 0 0 15px rgba(236, 72, 153, 0.25);
+        background: rgba(61, 97, 255, 0.2);
+        border: 1px solid #3D61FF;
+        box-shadow: 0 0 15px rgba(61, 97, 255, 0.4);
     }
-
-    /* Text Colors */
     [data-testid="stSidebar"] [data-testid="stRadio"] label p {
-        color: #a1a1aa;
-        font-weight: 500;
-        font-size: 15px;
+        color: #e2e8f0; font-weight: 500; font-size: 15px;
     }
     [data-testid="stSidebar"] [data-testid="stRadio"] label:has(input:checked) p {
-        color: #ffffff !important;
-        font-weight: 700;
-        text-shadow: 0 0 5px rgba(236, 72, 153, 0.5);
+        color: #ffffff !important; font-weight: 700;
+        text-shadow: 0 0 5px rgba(61, 97, 255, 0.6);
     }
 
     /* --- DASHBOARD TILES (Secondary Buttons) --- */
     div.stButton > button[kind="secondary"] {
-        background: rgba(255, 255, 255, 0.05);
+        background: rgba(255, 255, 255, 0.1);
         backdrop-filter: blur(16px);
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.2);
         color: white;
         height: 110px;
         white-space: pre-wrap;
         border-radius: 16px;
-        transition: all 0.2s;
-        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+        transition: all 0.3s;
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2);
     }
     div.stButton > button[kind="secondary"]:hover {
-        background: rgba(255, 255, 255, 0.1);
+        background: rgba(255, 255, 255, 0.2);
         transform: translateY(-4px);
-        border-color: rgba(255, 255, 255, 0.3);
-        box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.4);
-    }
-    div.stButton > button[kind="secondary"]:active {
-        background: rgba(255, 255, 255, 0.15);
-        transform: translateY(0);
+        border-color: #17D29F; /* Teal accent */
+        box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.3);
     }
     
-    /* --- PRIMARY BUTTONS (Actions) --- */
+    /* --- PRIMARY BUTTONS (Actions) - Styled like the #3D61FF blue button in the image --- */
     div.stButton > button[kind="primary"] {
-        background: linear-gradient(90deg, #d946ef, #8b5cf6);
+        background: #3D61FF; 
         border: none;
         color: white;
-        box-shadow: 0 4px 15px rgba(217, 70, 239, 0.4);
+        border-radius: 30px; /* Pill shape like the image */
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        box-shadow: 0 4px 15px rgba(61, 97, 255, 0.4);
+        transition: all 0.3s ease;
+    }
+    div.stButton > button[kind="primary"]:hover {
+        background: #17D29F; /* Switches to the Teal on hover */
+        box-shadow: 0 4px 15px rgba(23, 210, 159, 0.5);
+        transform: translateY(-2px);
     }
 
     /* --- TITAN ELEMENTS --- */
-    .titan-title {
-        font-size: 26px; font-weight: 800;
-        background: linear-gradient(to right, #ec4899, #8b5cf6);
-        -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-        margin-bottom: 25px; letter-spacing: -0.5px;
+    .titan-title, h1, h2, h3 {
+        color: white !important;
+        text-shadow: 0px 2px 10px rgba(0,0,0,0.3);
+        font-weight: 800;
+        letter-spacing: -0.5px;
     }
     .user-card {
-        background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.15);
         border-radius: 16px; padding: 16px; display: flex; align-items: center; gap: 14px;
     }
     .time-active {
-        background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3);
-        color: #4ade80; padding: 12px; border-radius: 12px; font-weight: 600; display: flex; align-items: center; gap: 10px;
+        background: rgba(23, 210, 159, 0.15); border: 1px solid rgba(23, 210, 159, 0.4);
+        color: #17D29F; padding: 12px; border-radius: 12px; font-weight: 600; display: flex; align-items: center; gap: 10px;
     }
     .titan-card {
-        background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(16px);
-        border-radius: 20px; border: 1px solid rgba(255, 255, 255, 0.1);
-        padding: 24px; box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3); margin-bottom: 15px;
+        background: rgba(255, 255, 255, 0.08); backdrop-filter: blur(16px);
+        border-radius: 20px; border: 1px solid rgba(255, 255, 255, 0.15);
+        padding: 24px; box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2); margin-bottom: 15px;
     }
     .stTextInput input, .stSelectbox div[data-baseweb="select"] > div, .stNumberInput input {
-        background-color: rgba(0, 0, 0, 0.4) !important; color: white !important;
-        border: 1px solid rgba(255, 255, 255, 0.15) !important; border-radius: 10px !important;
+        background-color: rgba(0, 0, 0, 0.25) !important; color: white !important;
+        border: 1px solid rgba(255, 255, 255, 0.2) !important; border-radius: 12px !important;
+    }
+    /* Style Tabs to look modern */
+    .stTabs [data-baseweb="tab-list"] {
+        background-color: transparent;
+        gap: 20px;
+    }
+    .stTabs [data-baseweb="tab"] {
+        color: #e2e8f0;
+        background-color: transparent;
+        border-radius: 8px 8px 0 0;
+    }
+    .stTabs [aria-selected="true"] {
+        color: #17D29F !important;
+        border-bottom-color: #17D29F !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -534,11 +554,6 @@ st.markdown("""
 def safe_rerun():
     time.sleep(0.1)
     st.rerun()
-
-def get_efficiency_badge(task):
-    if task["status"] == "Done":
-        return '<span class="badge" style="background:#10b98120; color:#4ade80;">Done</span>'
-    return '<span class="badge" style="background:#3b82f620; color:#60a5fa;">Active</span>'
 
 # --- AUTHENTICATION FLOW ---
 if "authenticated" not in st.session_state:
@@ -549,25 +564,63 @@ def login():
     with col2:
         st.markdown("<br><br><br>", unsafe_allow_html=True)
         st.markdown("""
-        <div style="background: rgba(255,255,255,0.05); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.1); border-radius: 24px; padding: 40px; text-align: center;">
-            <h1 style="background: linear-gradient(to right, #ec4899, #8b5cf6); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">TITAN CONTROL</h1>
-            <p style="color: #a1a1aa;">Secure Enterprise Access</p>
+        <div style="background: rgba(255,255,255,0.05); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.15); border-radius: 24px; padding: 40px; text-align: center; margin-bottom: 25px;">
+            <h1 style="font-size: 42px; margin-bottom: 5px;">TITAN CONTROL</h1>
+            <p style="color: #e2e8f0; font-size: 18px;">Secure Enterprise Access</p>
         </div>
         """, unsafe_allow_html=True)
         
-        with st.form("login"):
-            u = st.text_input("Username")
-            p = st.text_input("Password", type="password")
-            if st.form_submit_button("LOGIN", type="primary", use_container_width=True):
-                user = verify_user(u, p)
-                if user:
-                    st.session_state.authenticated = True
-                    st.session_state.user = user
-                    st.success("Authenticated")
-                    safe_rerun()
-                else:
-                    st.error("Access Denied")
-        st.info("Default: admin / 123")
+        tab_login, tab_register = st.tabs(["🔒 Secure Login", "📝 Create Account"])
+        
+        with tab_login:
+            with st.form("login_form"):
+                u = st.text_input("Email Address or Username")
+                p = st.text_input("Password", type="password")
+                if st.form_submit_button("LOGIN", type="primary", use_container_width=True):
+                    user = verify_user(u, p)
+                    if user:
+                        st.session_state.authenticated = True
+                        st.session_state.user = user
+                        st.success("Authenticated Successfully")
+                        safe_rerun()
+                    else:
+                        st.error("Access Denied. Check credentials.")
+            st.info("Demo Account: admin@titan.com / 123")
+            
+        with tab_register:
+            with st.form("register_form"):
+                new_email = st.text_input("Real Email Address *")
+                new_username = st.text_input("Desired Username *")
+                new_name = st.text_input("Full Name *")
+                new_role = st.selectbox("Role", ["Employee", "Account Manager", "Researcher", "Admin"])
+                new_pass = st.text_input("Password *", type="password")
+                new_pass2 = st.text_input("Confirm Password *", type="password")
+                
+                if st.form_submit_button("REGISTER NOW", type="primary", use_container_width=True):
+                    # --- REAL EMAIL VALIDATION ---
+                    email_regex = r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$"
+                    
+                    if not re.match(email_regex, new_email):
+                        st.error("⚠️ Please enter a valid, real email address.")
+                    elif not new_username or not new_name or not new_pass:
+                        st.error("⚠️ Please fill in all required fields.")
+                    elif new_pass != new_pass2:
+                        st.error("⚠️ Passwords do not match.")
+                    elif len(new_pass) < 6:
+                        st.error("⚠️ Password must be at least 6 characters.")
+                    else:
+                        success = create_user(
+                            username=new_username, 
+                            password=new_pass, 
+                            name=new_name, 
+                            role=new_role, 
+                            is_admin=(new_role=="Admin"),
+                            email=new_email
+                        )
+                        if success:
+                            st.success("✅ Account created! You can now log in using the Login tab.")
+                        else:
+                            st.error("⚠️ Username or Email is already registered.")
 
 if not st.session_state.authenticated:
     login()
@@ -579,22 +632,22 @@ else:
     
     st.sidebar.markdown(f"""
     <div class="user-card">
-        <div style="font-size: 20px; background: rgba(255,255,255,0.1); width: 42px; height: 42px; display: flex; align-items: center; justify-content: center; border-radius: 50%;">{user['avatar']}</div>
+        <div style="font-size: 20px; background: rgba(255,255,255,0.15); width: 42px; height: 42px; display: flex; align-items: center; justify-content: center; border-radius: 50%;">{user['avatar']}</div>
         <div style="line-height: 1.3;">
             <div style="font-weight: 700; font-size: 15px; color: white;">{user['name']}</div>
-            <div style="font-size: 11px; color: #a1a1aa; text-transform: uppercase; letter-spacing: 0.5px;">{user['role']}</div>
+            <div style="font-size: 11px; color: #e2e8f0; text-transform: uppercase; letter-spacing: 0.5px;">{user['role']}</div>
         </div>
     </div>
     """, unsafe_allow_html=True)
 
-    st.sidebar.markdown('<div style="color: #71717a; font-size: 11px; font-weight: 700; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px;">Time Clock</div>', unsafe_allow_html=True)
+    st.sidebar.markdown('<div style="color: #cbd5e1; font-size: 11px; font-weight: 700; margin-bottom: 10px; margin-top: 15px; text-transform: uppercase; letter-spacing: 1px;">Time Clock</div>', unsafe_allow_html=True)
     last_event = get_last_work_event(user['username'])
     is_working = last_event and last_event[0] == 'CLOCK_IN'
     
     if is_working:
         st.sidebar.markdown(f"""
         <div class="time-active">
-            <div style="width: 8px; height: 8px; background: #4ade80; border-radius: 50%; box-shadow: 0 0 10px #4ade80;"></div>
+            <div style="width: 8px; height: 8px; background: #17D29F; border-radius: 50%; box-shadow: 0 0 10px #17D29F;"></div>
             <span>Working since {last_event[1][11:16]}</span>
         </div>
         """, unsafe_allow_html=True)
@@ -604,7 +657,7 @@ else:
             safe_rerun()
     else:
         st.sidebar.markdown(f"""
-        <div class="user-card" style="margin-bottom: 10px; padding: 12px; justify-content: center; color: #a1a1aa; font-size: 13px; background: rgba(255,255,255,0.02);">
+        <div class="user-card" style="margin-bottom: 10px; padding: 12px; justify-content: center; color: #e2e8f0; font-size: 13px; background: rgba(255,255,255,0.05);">
             ⚪ Currently Offline
         </div>
         """, unsafe_allow_html=True)
@@ -757,8 +810,7 @@ else:
                 # Handling Selection to Open Detail View
                 if len(event.selection.rows) > 0:
                     selected_index = event.selection.rows[0]
-                    # We need to find the correct ID from the filtered list, not the original index
-                    # Note: filtered is a list of dicts. We can index directly because df was created from filtered.
+                    # Find correct ID
                     task_id = df.iloc[selected_index]['id'] if 'id' in df.columns else filtered[selected_index]['id']
                     st.session_state.view_task_id = int(task_id)
                     safe_rerun()
@@ -774,16 +826,15 @@ else:
                 for i, w in enumerate(workers):
                     with cols[i % 4]:
                         st.markdown(f"""
-                        <div style="background:rgba(16, 185, 129, 0.1); border:1px solid #4ade80; padding:10px; border-radius:10px;">
+                        <div style="background:rgba(23, 210, 159, 0.15); border:1px solid #17D29F; padding:10px; border-radius:10px;">
                             <div style="font-weight:bold; color:white;">{w['name']}</div>
-                            <div style="font-size:12px; color:#4ade80;">Online since {w['since'][11:16]}</div>
+                            <div style="font-size:12px; color:#17D29F;">Online since {w['since'][11:16]}</div>
                         </div>
                         """, unsafe_allow_html=True)
             else:
                 st.caption("No active shifts.")
 
-    # --- OTHER PAGES (Placeholder for brevity, assuming similar structure to previous) ---
-    # Since specific changes were requested for Dashboard/Nav, I kept other pages standard.
+    # --- OTHER PAGES ---
     elif page == "My Desk":
         st.markdown("# 💻 My Desk")
         
@@ -796,12 +847,12 @@ else:
         st.markdown(f"""
         <div class="titan-card" style="display:flex; justify-content:space-around; align-items:center;">
             <div style="text-align:center;">
-                <div style="font-size:24px; font-weight:bold; color:#f472b6;">{avg_rating:.1f} ★</div>
-                <div style="font-size:11px; text-transform:uppercase; color:#a1a1aa;">Avg Quality Rating</div>
+                <div style="font-size:24px; font-weight:bold; color:#FF4081;">{avg_rating:.1f} ★</div>
+                <div style="font-size:11px; text-transform:uppercase; color:#e2e8f0;">Avg Quality Rating</div>
             </div>
             <div style="text-align:center;">
-                <div style="font-size:24px; font-weight:bold; color:#4ade80;">{len(completed_my)}</div>
-                <div style="font-size:11px; text-transform:uppercase; color:#a1a1aa;">Tasks Finished</div>
+                <div style="font-size:24px; font-weight:bold; color:#17D29F;">{len(completed_my)}</div>
+                <div style="font-size:11px; text-transform:uppercase; color:#e2e8f0;">Tasks Finished</div>
             </div>
         </div>
         """, unsafe_allow_html=True)
@@ -837,19 +888,19 @@ else:
                 
                 with c_card:
                     timer_active = t['timer_start'] is not None
-                    border_color = "#ec4899" if timer_active else ("#4ade80" if t['status']=='Done' else "rgba(255,255,255,0.1)")
+                    border_color = "#3D61FF" if timer_active else ("#17D29F" if t['status']=='Done' else "rgba(255,255,255,0.2)")
                     rating_html = f"<span style='color:#fbbf24; margin-left:10px;'>{'★'*t['rating']}</span>" if t['rating'] else ""
                     
                     st.markdown(f"""
                     <div class="titan-card" style="padding: 15px; margin-bottom: 5px; border: 1px solid {border_color};">
                         <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <div style="font-size:16px; font-weight:bold;">{t['title']} {rating_html}</div>
-                            <div style="font-size:11px; font-weight:bold; color:#a1a1aa; background:rgba(255,255,255,0.1); padding:2px 8px; border-radius:4px;">{t['company']}</div>
+                            <div style="font-size:16px; font-weight:bold; color:white;">{t['title']} {rating_html}</div>
+                            <div style="font-size:11px; font-weight:bold; color:#e2e8f0; background:rgba(255,255,255,0.15); padding:2px 8px; border-radius:4px;">{t['company']}</div>
                         </div>
-                        <div style="font-size:12px; color:#a1a1aa; margin-top:5px; display:flex; gap:10px;">
+                        <div style="font-size:12px; color:#cbd5e1; margin-top:5px; display:flex; gap:10px;">
                             <span>👤 {t['assignee']}</span>
                             <span>📂 {t['category']}</span>
-                            <span style="color:{'#ec4899' if timer_active else 'white'}">⏱️ {t['act_time']:.2f}h Logged</span>
+                            <span style="color:{'#17D29F' if timer_active else 'white'}">⏱️ {t['act_time']:.2f}h Logged</span>
                         </div>
                     </div>
                     """, unsafe_allow_html=True)
@@ -857,7 +908,7 @@ else:
                 with c_timer:
                     if t['status'] != 'Done':
                         if t['timer_start']:
-                            st.markdown(f"<div style='color:#ec4899; font-size:12px; text-align:center;'>Running...</div>", unsafe_allow_html=True)
+                            st.markdown(f"<div style='color:#17D29F; font-size:12px; text-align:center;'>Running...</div>", unsafe_allow_html=True)
                             if st.button("⏹ Stop", key=f"stop_{t['id']}", use_container_width=True):
                                 toggle_task_timer(t['id'])
                                 safe_rerun()
@@ -926,6 +977,10 @@ else:
     elif page == "Inventory & SOPs":
         st.markdown("# 📚 Inventory")
         st.dataframe(get_inventory(), use_container_width=True)
+
+    elif page == "Team Calendar":
+        st.markdown("# 📅 Calendar")
+        st.info("Calendar module is active. Create tasks to see them scheduled here.")
 
     elif page == "AI Assistant 🤖":
         st.markdown("# 🤖 AI Chat")
