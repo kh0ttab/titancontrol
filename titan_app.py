@@ -618,76 +618,93 @@ st.markdown("""
         fill: #94a3b8 !important; /* Ensure dropdown arrow is visible */
     }
 
-    /* --- AGGRESSIVE DROPDOWN MENU FIXES --- */
-    /* Streamlit appends popovers to the DOM body, so we must force backgrounds heavily */
-    div[data-baseweb="popover"],
+    /* =====================================================================
+       AGGRESSIVE STREAMLIT POPOVER & DROPDOWN FIXES (LIGHT/DARK PROOF)
+       ===================================================================== */
+    
+    /* Target the base web popover that gets portaled to the end of the DOM */
     div[data-baseweb="popover"] > div,
-    div[data-testid="stVirtualDropdown"],
-    ul[role="listbox"],
-    ul[data-baseweb="menu"] {
-        background-color: #1e293b !important; /* Solid elegant slate blue */
-        border-color: #334155 !important;
-    }
-
-    /* Outer Popover container */
-    div[data-baseweb="popover"] > div {
+    div[data-testid="stVirtualDropdown"] {
+        background-color: #1e293b !important; /* Solid slate blue */
         border: 1px solid #334155 !important;
         border-radius: 8px !important;
-        box-shadow: 0 8px 30px rgba(0,0,0,0.5) !important;
-        overflow: hidden !important;
-    }
-
-    /* Inner spacing */
-    div[data-testid="stVirtualDropdown"] {
+        box-shadow: 0 10px 40px -10px rgba(0,0,0,0.7) !important;
         padding: 4px !important;
     }
 
-    /* Individual dropdown options */
+    /* Force backgrounds explicitly transparent so #1e293b shows through */
+    ul[data-baseweb="menu"], 
+    ul[role="listbox"], 
+    div[role="listbox"] {
+        background-color: transparent !important; 
+    }
+
+    /* The individual dropdown options */
     li[role="option"] {
-        background-color: #1e293b !important; /* Explicitly dark */
-        color: #cbd5e1 !important; /* Slate gray text */
+        background-color: transparent !important;
+        padding: 10px 14px !important;
         border-radius: 6px !important;
-        margin: 2px !important;
-        padding: 10px 14px !important; 
+        margin-bottom: 2px !important;
+        display: flex !important;
+        align-items: center !important;
+        transition: background-color 0.2s ease, transform 0.2s ease !important;
+    }
+
+    /* Force text color for unselected options */
+    li[role="option"] span,
+    li[role="option"] div,
+    li[role="option"] {
+        color: #cbd5e1 !important; 
         font-size: 14.5px !important;
         font-weight: 500 !important;
-        border-bottom: none !important;
-        transition: all 0.2s ease !important;
     }
 
-    /* Hover and Selected states */
-    li[role="option"]:hover, 
-    li[role="option"][aria-selected="true"], 
+    /* Hover and Selected state for options */
+    li[role="option"]:hover,
+    li[role="option"][aria-selected="true"],
     li[role="option"][aria-highlighted="true"] {
-        background-color: #334155 !important; /* Slightly lighter solid slate on hover */
-        color: #ffffff !important;
-        transform: translateX(4px) !important; /* Elegant indent */
-        cursor: pointer !important;
+        background-color: #3b82f6 !important; /* Solid vibrant blue */
+        transform: translateX(4px) !important; /* Neat UI indent */
     }
 
-    /* --- MULTISELECT TAGS (CHIPS) --- */
+    /* Force text color for selected/hovered options */
+    li[role="option"]:hover span,
+    li[role="option"]:hover div,
+    li[role="option"][aria-selected="true"] span,
+    li[role="option"][aria-selected="true"] div,
+    li[role="option"][aria-highlighted="true"] span,
+    li[role="option"][aria-highlighted="true"] div,
+    li[role="option"]:hover,
+    li[role="option"][aria-selected="true"],
+    li[role="option"][aria-highlighted="true"] {
+        color: #ffffff !important; /* Pure white text */
+    }
+
+    /* Hide ugly default popover arrows if any */
+    div[data-baseweb="popover"] > div > div[data-baseweb="arrow"] {
+        display: none !important;
+    }
+
+    /* Multiselect Tags/Chips styling */
     span[data-baseweb="tag"] {
         background-color: #334155 !important;
         border: 1px solid #475569 !important;
-        color: white !important;
+        color: #f8fafc !important;
         border-radius: 6px !important;
-        padding: 2px 6px !important;
-        margin: 3px !important;
+        padding: 2px 8px !important;
     }
     span[data-baseweb="tag"] span {
-        color: white !important;
-        font-weight: 600 !important;
-        font-size: 13px !important;
+        color: #f8fafc !important;
     }
     span[data-baseweb="tag"] svg {
         fill: #94a3b8 !important;
     }
     span[data-baseweb="tag"] span[role="presentation"]:hover {
-        background-color: #ef4444 !important; /* Solid red for primary action */
+        background-color: #ef4444 !important; /* Solid red hover for delete */
         border-radius: 4px !important;
     }
     span[data-baseweb="tag"] span[role="presentation"]:hover svg {
-        fill: white !important;
+        fill: #ffffff !important;
     }
 
     /* Style Tabs to look modern */
