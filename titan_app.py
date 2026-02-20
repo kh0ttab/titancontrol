@@ -424,7 +424,7 @@ def ask_gemini(prompt, context=""):
         return model.generate_content(f"Titan AI Context: {context}. User: {prompt}").text
     except Exception as e: return f"Error: {e}"
 
-# --- CSS STYLING (FLUID GLASS SPACE GRADIENT & ULTRA-MODERN SIDEBAR) ---
+# --- CSS STYLING (FLUID GLASS SPACE GRADIENT & ULTRA-MODERN UI) ---
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
@@ -590,10 +590,64 @@ st.markdown("""
         border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.12);
         padding: 24px; box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.1); margin-bottom: 15px;
     }
-    .stTextInput input, .stSelectbox div[data-baseweb="select"] > div, .stNumberInput input {
-        background-color: rgba(15, 23, 42, 0.6) !important; color: white !important;
-        border: 1px solid rgba(255, 255, 255, 0.15) !important; border-radius: 8px !important;
+    
+    /* --- INPUTS, SELECTBOXES & MULTISELECTS (Solid Slate Design) --- */
+    .stTextInput input, 
+    .stSelectbox div[data-baseweb="select"] > div, 
+    .stMultiSelect div[data-baseweb="select"] > div, 
+    .stNumberInput input {
+        background-color: #1e293b !important; /* Solid elegant slate blue */
+        color: white !important;
+        border: 1px solid #334155 !important; 
+        border-radius: 6px !important;
+        box-shadow: inset 0 2px 4px rgba(0,0,0,0.1) !important;
+        transition: border-color 0.2s ease !important;
     }
+    .stTextInput input:focus, 
+    .stSelectbox div[data-baseweb="select"] > div:focus-within, 
+    .stMultiSelect div[data-baseweb="select"] > div:focus-within {
+        border-color: #475569 !important;
+        box-shadow: 0 0 0 1px #475569 !important;
+    }
+
+    /* --- DROPDOWN MENUS (POPOVERS) FOR SELECT & MULTISELECT --- */
+    div[data-baseweb="popover"] > div {
+        background-color: #1e293b !important; /* Matches solid slate */
+        border: 1px solid #334155 !important;
+        border-radius: 6px !important;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.5) !important;
+    }
+    ul[role="listbox"] {
+        background-color: transparent !important;
+    }
+    li[role="option"] {
+        color: #e2e8f0 !important;
+        background-color: transparent !important;
+        transition: background-color 0.2s ease;
+        padding: 10px 14px !important; /* Clean spacious padding */
+    }
+    li[role="option"]:hover, li[role="option"][aria-selected="true"], li[role="option"][aria-highlighted="true"] {
+        background-color: #334155 !important; /* Hover effect state */
+        color: white !important;
+    }
+
+    /* --- MULTISELECT TAGS (CHIPS) --- */
+    span[data-baseweb="tag"] {
+        background-color: #334155 !important; /* Solid lighter slate */
+        border: 1px solid #475569 !important;
+        color: white !important;
+        border-radius: 4px !important;
+        padding: 4px 8px !important;
+    }
+    span[data-baseweb="tag"] span {
+        color: white !important;
+    }
+    span[data-baseweb="tag"] span[role="button"]:hover {
+        background-color: #ef4444 !important; /* Neat red hover for tag close */
+        color: white !important;
+        border-radius: 50%;
+    }
+
     /* Style Tabs to look modern */
     .stTabs [data-baseweb="tab-list"] { background-color: transparent; gap: 20px; }
     .stTabs [data-baseweb="tab"] { color: #e2e8f0; background-color: transparent; border-radius: 8px 8px 0 0; }
