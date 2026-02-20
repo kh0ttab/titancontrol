@@ -416,10 +416,10 @@ def ask_gemini(prompt, context=""):
         return model.generate_content(f"Titan AI Context: {context}. User: {prompt}").text
     except Exception as e: return f"Error: {e}"
 
-# --- CSS STYLING (FLUID GLASS SPACE GRADIENT & SIDEBAR MATCHING) ---
+# --- CSS STYLING (FLUID GLASS SPACE GRADIENT & ULTRA-MODERN SIDEBAR) ---
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
 
     /* --- BACKGROUND & GLOBAL --- */
     .stApp {
@@ -431,87 +431,107 @@ st.markdown("""
         color: white;
     }
 
-    /* --- SIDEBAR GLASS --- */
+    /* --- SIDEBAR GLASS (SEAMLESS & FLUID) --- */
     [data-testid="stSidebar"] {
-        background: rgba(15, 23, 42, 0.45) !important; /* Deep navy glass matching image */
-        backdrop-filter: blur(16px);
-        -webkit-backdrop-filter: blur(16px);
-        border-right: 1px solid rgba(255,255,255,0.08);
+        background: rgba(13, 17, 30, 0.55) !important; /* Deep, beautifully translucent navy */
+        backdrop-filter: blur(24px) !important;
+        -webkit-backdrop-filter: blur(24px) !important;
+        border-right: 1px solid rgba(255, 255, 255, 0.05) !important;
     }
     
     /* --- SIDEBAR TITLES & TEXT --- */
     [data-testid="stSidebar"] .titan-title {
-        font-size: 15px;
-        font-weight: 800;
-        color: #ffffff;
+        font-size: 11px;
+        font-weight: 700;
+        color: #64748b;
         text-transform: uppercase;
-        letter-spacing: 0.5px;
-        margin-bottom: 5px;
-        margin-top: 10px;
-        text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+        letter-spacing: 1.5px;
+        margin-bottom: 8px;
+        margin-top: 15px;
+        padding-left: 14px; /* Align beautifully with the tiles */
     }
 
-    /* --- NAVIGATION MENU TILES (FLUID UI) --- */
+    /* --- NAVIGATION MENU TILES (FLUID LEFT-ALIGNED UI) --- */
     [data-testid="stSidebar"] [data-testid="stRadio"] label > div:first-child { display: none; }
     [data-testid="stSidebar"] [data-testid="stRadio"] > label { display: none !important; }
-    [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] { gap: 12px; }
+    [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] { 
+        gap: 2px; 
+        padding: 0 10px; /* Breathing room */
+    }
 
     /* Unselected Tile */
     [data-testid="stSidebar"] [data-testid="stRadio"] label {
-        background: rgba(30, 41, 59, 0.5); /* Frosted dark blue */
-        border: 1px solid rgba(255, 255, 255, 0.06);
-        border-radius: 12px;
-        padding: 14px 16px !important;
-        margin-bottom: 0px !important;
-        transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+        background: transparent !important; 
+        border: none !important; /* Removed the ugly blocky borders */
+        border-radius: 8px !important;
+        padding: 12px 14px !important;
+        margin-bottom: 2px !important;
+        transition: all 0.3s ease !important;
         display: flex;
         align-items: center;
-        justify-content: center; /* Uniform center alignment */
-        width: 90%; /* Fixed relative width to match screenshot sizing */
-        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
-        backdrop-filter: blur(10px);
+        justify-content: flex-start !important; /* Proper left alignment */
+        width: 100% !important;
+        box-shadow: none !important;
+        cursor: pointer;
     }
+    
     [data-testid="stSidebar"] [data-testid="stRadio"] label:hover {
-        background: rgba(61, 97, 255, 0.15);
-        transform: translateY(-2px);
-        border-color: rgba(61, 97, 255, 0.5);
-        box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2), 0 0 12px rgba(61, 97, 255, 0.25);
+        background: rgba(255, 255, 255, 0.04) !important; /* Subtle frosted hover */
+        transform: translateX(4px); /* Smooth slight indent */
     }
 
-    /* Selected Tile (Glowing Neon Blue) */
+    /* Selected Tile (Fluid glowing highlight) */
     [data-testid="stSidebar"] [data-testid="stRadio"] label:has(input:checked) {
-        background: rgba(30, 58, 138, 0.8); /* Deep solid blue */
-        border: 1px solid #3b82f6; /* Bright blue glowing border */
-        box-shadow: 0 0 20px rgba(59, 130, 246, 0.35), inset 0 0 10px rgba(59, 130, 246, 0.15);
-        transform: scale(1.03); /* Slight pop out effect */
+        background: linear-gradient(90deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.01) 100%) !important; 
+        box-shadow: inset 3px 0 0 0 #17D29F !important; /* Elegant Teal Left Border */
+        border-radius: 4px 8px 8px 4px !important;
+        transform: translateX(4px);
     }
 
     /* Tile Typography */
     [data-testid="stSidebar"] [data-testid="stRadio"] label p {
-        color: #e2e8f0; font-weight: 600; font-size: 15px; margin: 0;
+        color: #94a3b8 !important; 
+        font-weight: 500 !important; 
+        font-size: 14.5px !important; 
+        margin: 0 !important;
+        transition: color 0.3s ease;
     }
+    
+    [data-testid="stSidebar"] [data-testid="stRadio"] label:hover p {
+        color: #cbd5e1 !important;
+    }
+
     [data-testid="stSidebar"] [data-testid="stRadio"] label:has(input:checked) p {
-        color: #ffffff !important; font-weight: 800;
-        text-shadow: 0 0 8px rgba(255, 255, 255, 0.3);
-        letter-spacing: 0.5px;
+        color: #ffffff !important; 
+        font-weight: 600 !important;
+        letter-spacing: 0.3px;
+        text-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
     }
     
     /* --- SIDEBAR BUTTONS (Like CLOCK IN) --- */
     [data-testid="stSidebar"] div.stButton > button[kind="primary"] {
-        background: #3b82f6 !important; /* Vivid Blue */
-        border-radius: 20px !important; /* Pill shape */
-        padding: 6px 20px !important;
-        width: auto !important; /* Adapts to text rather than full width */
-        font-weight: 700 !important;
+        background: linear-gradient(90deg, rgba(61,97,255,0.9), rgba(23,210,159,0.9)) !important;
+        border-radius: 8px !important; 
+        padding: 8px 20px !important;
+        width: calc(100% - 20px) !important; /* Full width minus margin */
+        margin: 5px 10px 15px 10px !important;
+        font-weight: 600 !important;
         font-size: 14px !important;
-        box-shadow: 0 4px 15px rgba(59, 130, 246, 0.5) !important;
-        transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
-        margin-top: 5px;
+        border: none !important;
+        box-shadow: 0 4px 15px rgba(23, 210, 159, 0.2) !important;
+        transition: all 0.3s ease !important;
     }
     [data-testid="stSidebar"] div.stButton > button[kind="primary"]:hover {
-        transform: translateY(-2px) scale(1.05) !important;
-        box-shadow: 0 6px 20px rgba(59, 130, 246, 0.7) !important;
-        background: #2563eb !important;
+        transform: translateY(-2px) !important;
+        box-shadow: 0 6px 20px rgba(23, 210, 159, 0.4) !important;
+        opacity: 1 !important;
+    }
+
+    /* Pulse Animation for Online Dot */
+    @keyframes pulse-dot {
+        0% { box-shadow: 0 0 0 0 rgba(23, 210, 159, 0.5); }
+        70% { box-shadow: 0 0 0 6px rgba(23, 210, 159, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(23, 210, 159, 0); }
     }
 
     /* --- DASHBOARD TILES (Secondary Buttons) --- */
@@ -650,16 +670,16 @@ if not st.session_state.authenticated:
 else:
     user = st.session_state.user
     
-    # --- SIDEBAR UI (MATCHING SCREENSHOT) ---
-    st.sidebar.markdown('<div class="titan-title">TITAN OS</div>', unsafe_allow_html=True)
+    # --- SIDEBAR UI (SEAMLESS & CLEAN) ---
+    st.sidebar.markdown('<div class="titan-title" style="margin-top: 5px;">TITAN OS</div>', unsafe_allow_html=True)
     
-    # Big Boss Style User Card
+    # Big Boss Style User Card (No more clunky box, blends into sidebar)
     st.sidebar.markdown(f"""
-    <div style="background: rgba(30, 41, 59, 0.4); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.05); border-radius: 14px; padding: 14px 16px; margin-bottom: 25px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); display: flex; align-items: center; gap: 14px;">
-        <div style="font-size: 20px; background: rgba(255,255,255,0.1); width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 50%; box-shadow: inset 0 2px 4px rgba(255,255,255,0.1);">{user['avatar']}</div>
-        <div style="line-height: 1.3;">
-            <div style="font-weight: 800; font-size: 15px; color: white; letter-spacing: 0.2px;">{user['name']}</div>
-            <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">{user['role']}</div>
+    <div style="padding: 5px 14px 20px 14px; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; align-items: center; gap: 14px;">
+        <div style="font-size: 20px; background: linear-gradient(135deg, rgba(255,255,255,0.15), rgba(255,255,255,0.02)); width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 50%; border: 1px solid rgba(255,255,255,0.1); box-shadow: inset 0 2px 4px rgba(255,255,255,0.05);">{user['avatar']}</div>
+        <div style="line-height: 1.2;">
+            <div style="font-weight: 700; font-size: 15.5px; color: white; letter-spacing: 0.2px;">{user['name']}</div>
+            <div style="font-size: 11.5px; color: #94a3b8; font-weight: 500;">{user['role']}</div>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -669,9 +689,10 @@ else:
     is_working = last_event and last_event[0] == 'CLOCK_IN'
     
     if is_working:
+        # Seamless Online Indicator with CSS Pulse
         st.sidebar.markdown(f"""
-        <div style="margin-bottom: 15px; padding: 12px; justify-content: center; display: flex; align-items: center; color: #e2e8f0; font-size: 13px; font-weight: 600; background: rgba(30, 41, 59, 0.4); border: 1px solid rgba(255,255,255,0.05); border-radius: 20px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);">
-            <div style="width: 10px; height: 10px; background: #17D29F; border-radius: 50%; display: inline-block; margin-right: 8px; box-shadow: 0 0 8px #17D29F;"></div>
+        <div style="margin: 0 10px 10px 10px; padding: 10px 12px; display: flex; align-items: center; color: #17D29F; font-size: 13.5px; font-weight: 500; background: rgba(23, 210, 159, 0.05); border-radius: 8px;">
+            <div style="width: 8px; height: 8px; background: #17D29F; border-radius: 50%; display: inline-block; margin-right: 12px; animation: pulse-dot 2s infinite;"></div>
             Working since {last_event[1][11:16]}
         </div>
         """, unsafe_allow_html=True)
@@ -680,10 +701,10 @@ else:
             st.success("Shift Ended")
             safe_rerun()
     else:
-        # Currently Offline Pill style
+        # Seamless Offline Indicator
         st.sidebar.markdown(f"""
-        <div style="margin-bottom: 15px; padding: 12px; justify-content: center; display: flex; align-items: center; color: #e2e8f0; font-size: 13px; font-weight: 600; background: rgba(30, 41, 59, 0.4); border: 1px solid rgba(255,255,255,0.05); border-radius: 20px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);">
-            <div style="width: 10px; height: 10px; background: #cbd5e1; border-radius: 50%; display: inline-block; margin-right: 8px;"></div>
+        <div style="margin: 0 10px 10px 10px; padding: 10px 12px; display: flex; align-items: center; color: #94a3b8; font-size: 13.5px; font-weight: 500; background: rgba(255,255,255,0.02); border-radius: 8px;">
+            <div style="width: 8px; height: 8px; background: #475569; border-radius: 50%; display: inline-block; margin-right: 12px;"></div>
             Currently Offline
         </div>
         """, unsafe_allow_html=True)
@@ -692,9 +713,9 @@ else:
             st.success("Shift Started")
             safe_rerun()
 
-    st.sidebar.markdown("<br><br>", unsafe_allow_html=True)
+    st.sidebar.markdown("<br>", unsafe_allow_html=True)
     
-    # Uniform Menu Tiles Navigation
+    # Fluid Left-Aligned Navigation List
     nav_opts = ["Dashboard", "My Desk", "Team Calendar", "3PL Logistics", "Team & Reports", "Inventory & SOPs", "AI Assistant 🤖"]
     page = st.sidebar.radio("Navigation", nav_opts, label_visibility="hidden")
     
