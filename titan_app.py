@@ -599,7 +599,7 @@ st.markdown("""
         background-color: #1e293b !important; /* Solid elegant slate blue */
         color: white !important;
         border: 1px solid #334155 !important; 
-        border-radius: 8px !important;
+        border-radius: 6px !important;
         box-shadow: inset 0 2px 4px rgba(0,0,0,0.1) !important;
         transition: all 0.2s ease !important;
     }
@@ -619,82 +619,84 @@ st.markdown("""
     }
 
     /* =====================================================================
-       AGGRESSIVE STREAMLIT POPOVER & DROPDOWN FIXES (LIGHT/DARK PROOF)
+       AGGRESSIVE STREAMLIT POPOVER & DROPDOWN MENU FIXES
        ===================================================================== */
-    
-    /* Target the base web popover that gets portaled to the end of the DOM */
-    div[data-baseweb="popover"] > div,
-    div[data-testid="stVirtualDropdown"] {
+    /* Target the base web popover portal completely independent of DOM tree */
+    div[data-baseweb="popover"],
+    div[data-baseweb="popover"] > div {
+        background-color: transparent !important;
+    }
+
+    /* Outer Popover container */
+    div[data-baseweb="popover"] > div[data-placement] > div {
         background-color: #1e293b !important; /* Solid slate blue */
         border: 1px solid #334155 !important;
         border-radius: 8px !important;
-        box-shadow: 0 10px 40px -10px rgba(0,0,0,0.7) !important;
+        box-shadow: 0 10px 40px -5px rgba(0,0,0,0.8) !important;
         padding: 4px !important;
+        overflow: hidden !important;
     }
 
-    /* Force backgrounds explicitly transparent so #1e293b shows through */
+    /* Virtual dropdown container wrapper */
+    div[data-testid="stVirtualDropdown"],
     ul[data-baseweb="menu"], 
-    ul[role="listbox"], 
-    div[role="listbox"] {
-        background-color: transparent !important; 
+    ul[role="listbox"] {
+        background-color: #1e293b !important;
+        outline: none !important;
+        border: none !important;
     }
 
-    /* The individual dropdown options */
+    /* Individual dropdown options */
     li[role="option"] {
-        background-color: transparent !important;
-        padding: 10px 14px !important;
+        background-color: #1e293b !important; /* Explicitly dark */
+        color: #cbd5e1 !important; /* Slate gray text */
         border-radius: 6px !important;
-        margin-bottom: 2px !important;
-        display: flex !important;
-        align-items: center !important;
-        transition: background-color 0.2s ease, transform 0.2s ease !important;
-    }
-
-    /* Force text color for unselected options */
-    li[role="option"] span,
-    li[role="option"] div,
-    li[role="option"] {
-        color: #cbd5e1 !important; 
+        margin: 2px !important;
+        padding: 10px 14px !important; 
         font-size: 14.5px !important;
         font-weight: 500 !important;
+        border-bottom: none !important;
+        transition: all 0.2s ease !important;
+        display: flex !important;
+        align-items: center !important;
+    }
+
+    /* Force text elements inside to inherit correct colors */
+    li[role="option"] span,
+    li[role="option"] div,
+    li[role="option"] p {
+        color: inherit !important;
+        font-family: 'Outfit', sans-serif !important;
     }
 
     /* Hover and Selected state for options */
-    li[role="option"]:hover,
-    li[role="option"][aria-selected="true"],
+    li[role="option"]:hover, 
+    li[role="option"][aria-selected="true"], 
     li[role="option"][aria-highlighted="true"] {
         background-color: #3b82f6 !important; /* Solid vibrant blue */
-        transform: translateX(4px) !important; /* Neat UI indent */
-    }
-
-    /* Force text color for selected/hovered options */
-    li[role="option"]:hover span,
-    li[role="option"]:hover div,
-    li[role="option"][aria-selected="true"] span,
-    li[role="option"][aria-selected="true"] div,
-    li[role="option"][aria-highlighted="true"] span,
-    li[role="option"][aria-highlighted="true"] div,
-    li[role="option"]:hover,
-    li[role="option"][aria-selected="true"],
-    li[role="option"][aria-highlighted="true"] {
         color: #ffffff !important; /* Pure white text */
+        transform: translateX(4px) !important; /* Elegant indent */
+        cursor: pointer !important;
     }
 
-    /* Hide ugly default popover arrows if any */
-    div[data-baseweb="popover"] > div > div[data-baseweb="arrow"] {
-        display: none !important;
+    /* Remove default popover arrow arrows */
+    div[data-baseweb="popover"] div[data-baseweb="arrow"] {
+        display: none !important; 
     }
 
-    /* Multiselect Tags/Chips styling */
+    /* --- MULTISELECT TAGS (CHIPS) --- */
     span[data-baseweb="tag"] {
         background-color: #334155 !important;
         border: 1px solid #475569 !important;
-        color: #f8fafc !important;
+        color: white !important;
         border-radius: 6px !important;
-        padding: 2px 8px !important;
+        padding: 2px 6px !important;
+        margin: 3px !important;
     }
     span[data-baseweb="tag"] span {
-        color: #f8fafc !important;
+        color: white !important;
+        font-weight: 600 !important;
+        font-size: 13px !important;
     }
     span[data-baseweb="tag"] svg {
         fill: #94a3b8 !important;
