@@ -599,36 +599,46 @@ st.markdown("""
         background-color: #1e293b !important; /* Solid elegant slate blue */
         color: white !important;
         border: 1px solid #334155 !important; 
-        border-radius: 6px !important;
+        border-radius: 8px !important;
         box-shadow: inset 0 2px 4px rgba(0,0,0,0.1) !important;
-        transition: border-color 0.2s ease !important;
+        transition: all 0.2s ease !important;
     }
     .stTextInput input:focus, 
     .stSelectbox div[data-baseweb="select"] > div:focus-within, 
     .stMultiSelect div[data-baseweb="select"] > div:focus-within {
-        border-color: #475569 !important;
-        box-shadow: 0 0 0 1px #475569 !important;
+        border-color: #17D29F !important;
+        box-shadow: 0 0 0 1px rgba(23, 210, 159, 0.3) !important;
+    }
+    div[data-baseweb="select"] svg {
+        fill: #94a3b8 !important; /* Ensure dropdown arrow is visible */
     }
 
     /* --- DROPDOWN MENUS (POPOVERS) FOR SELECT & MULTISELECT --- */
     div[data-baseweb="popover"] > div {
         background-color: #1e293b !important; /* Matches solid slate */
         border: 1px solid #334155 !important;
-        border-radius: 6px !important;
-        box-shadow: 0 10px 25px rgba(0,0,0,0.5) !important;
+        border-radius: 8px !important;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.6) !important;
+        overflow: hidden !important;
     }
-    ul[role="listbox"] {
-        background-color: transparent !important;
+    ul[role="listbox"], ul[data-baseweb="menu"] {
+        background-color: #1e293b !important;
+        padding: 0 !important;
     }
     li[role="option"] {
-        color: #e2e8f0 !important;
+        color: #cbd5e1 !important;
         background-color: transparent !important;
-        transition: background-color 0.2s ease;
-        padding: 10px 14px !important; /* Clean spacious padding */
+        transition: background-color 0.2s ease, padding-left 0.2s ease, color 0.2s ease !important;
+        padding: 12px 14px !important; 
+        border-bottom: 1px solid rgba(255,255,255,0.03) !important;
+        font-size: 14.5px !important;
     }
-    li[role="option"]:hover, li[role="option"][aria-selected="true"], li[role="option"][aria-highlighted="true"] {
+    li[role="option"]:hover, 
+    li[role="option"][aria-selected="true"], 
+    li[role="option"][aria-highlighted="true"] {
         background-color: #334155 !important; /* Hover effect state */
         color: white !important;
+        padding-left: 20px !important; /* Sleek indent */
     }
 
     /* --- MULTISELECT TAGS (CHIPS) --- */
@@ -636,16 +646,23 @@ st.markdown("""
         background-color: #334155 !important; /* Solid lighter slate */
         border: 1px solid #475569 !important;
         color: white !important;
-        border-radius: 4px !important;
-        padding: 4px 8px !important;
+        border-radius: 6px !important;
+        padding: 2px 4px !important;
+        margin: 2px !important;
     }
     span[data-baseweb="tag"] span {
         color: white !important;
+        font-weight: 500 !important;
     }
-    span[data-baseweb="tag"] span[role="button"]:hover {
+    span[data-baseweb="tag"] svg {
+        fill: #94a3b8 !important;
+    }
+    span[data-baseweb="tag"] span[role="presentation"]:hover {
         background-color: #ef4444 !important; /* Neat red hover for tag close */
-        color: white !important;
-        border-radius: 50%;
+        border-radius: 4px !important;
+    }
+    span[data-baseweb="tag"] span[role="presentation"]:hover svg {
+        fill: white !important;
     }
 
     /* Style Tabs to look modern */
