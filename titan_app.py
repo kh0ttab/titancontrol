@@ -609,56 +609,81 @@ st.markdown("""
         border-color: #17D29F !important;
         box-shadow: 0 0 0 1px rgba(23, 210, 159, 0.3) !important;
     }
+    
+    /* Ensure text inside the input selection is strictly white */
+    div[data-baseweb="select"] div {
+        color: white !important;
+    }
     div[data-baseweb="select"] svg {
         fill: #94a3b8 !important; /* Ensure dropdown arrow is visible */
     }
 
-    /* --- DROPDOWN MENUS (POPOVERS) FOR SELECT & MULTISELECT --- */
+    /* --- AGGRESSIVE DROPDOWN MENU FIXES --- */
+    /* Streamlit appends popovers to the DOM body, so we must force backgrounds heavily */
+    div[data-baseweb="popover"],
+    div[data-baseweb="popover"] > div,
+    div[data-testid="stVirtualDropdown"],
+    ul[role="listbox"],
+    ul[data-baseweb="menu"] {
+        background-color: #1e293b !important; /* Solid elegant slate blue */
+        border-color: #334155 !important;
+    }
+
+    /* Outer Popover container */
     div[data-baseweb="popover"] > div {
-        background-color: #1e293b !important; /* Matches solid slate */
         border: 1px solid #334155 !important;
         border-radius: 8px !important;
-        box-shadow: 0 10px 40px rgba(0,0,0,0.6) !important;
+        box-shadow: 0 8px 30px rgba(0,0,0,0.5) !important;
         overflow: hidden !important;
     }
-    ul[role="listbox"], ul[data-baseweb="menu"] {
-        background-color: #1e293b !important;
-        padding: 0 !important;
+
+    /* Inner spacing */
+    div[data-testid="stVirtualDropdown"] {
+        padding: 4px !important;
     }
+
+    /* Individual dropdown options */
     li[role="option"] {
-        color: #cbd5e1 !important;
-        background-color: transparent !important;
-        transition: background-color 0.2s ease, padding-left 0.2s ease, color 0.2s ease !important;
-        padding: 12px 14px !important; 
-        border-bottom: 1px solid rgba(255,255,255,0.03) !important;
+        background-color: #1e293b !important; /* Explicitly dark */
+        color: #cbd5e1 !important; /* Slate gray text */
+        border-radius: 6px !important;
+        margin: 2px !important;
+        padding: 10px 14px !important; 
         font-size: 14.5px !important;
+        font-weight: 500 !important;
+        border-bottom: none !important;
+        transition: all 0.2s ease !important;
     }
+
+    /* Hover and Selected states */
     li[role="option"]:hover, 
     li[role="option"][aria-selected="true"], 
     li[role="option"][aria-highlighted="true"] {
-        background-color: #334155 !important; /* Hover effect state */
-        color: white !important;
-        padding-left: 20px !important; /* Sleek indent */
+        background-color: #334155 !important; /* Slightly lighter solid slate on hover */
+        color: #ffffff !important;
+        transform: translateX(4px) !important; /* Elegant indent */
+        cursor: pointer !important;
     }
 
     /* --- MULTISELECT TAGS (CHIPS) --- */
     span[data-baseweb="tag"] {
-        background-color: #334155 !important; /* Solid lighter slate */
+        background-color: #334155 !important;
         border: 1px solid #475569 !important;
         color: white !important;
         border-radius: 6px !important;
-        padding: 2px 4px !important;
-        margin: 2px !important;
+        padding: 2px 6px !important;
+        margin: 3px !important;
     }
     span[data-baseweb="tag"] span {
         color: white !important;
-        font-weight: 500 !important;
+        font-weight: 600 !important;
+        font-size: 13px !important;
     }
     span[data-baseweb="tag"] svg {
         fill: #94a3b8 !important;
     }
     span[data-baseweb="tag"] span[role="presentation"]:hover {
-        background-color: #ef4444 !important; /* Neat red hover for tag close */
+        background-color: #ef4444 !important; /* Solid red for primary action */
         border-radius: 4px !important;
     }
     span[data-baseweb="tag"] span[role="presentation"]:hover svg {
