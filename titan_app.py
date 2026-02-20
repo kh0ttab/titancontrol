@@ -416,7 +416,7 @@ def ask_gemini(prompt, context=""):
         return model.generate_content(f"Titan AI Context: {context}. User: {prompt}").text
     except Exception as e: return f"Error: {e}"
 
-# --- CSS STYLING (VIBRANT SPACE GRADIENT MATCHING IMAGE) ---
+# --- CSS STYLING (FLUID GLASS SPACE GRADIENT & SIDEBAR MATCHING) ---
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800&display=swap');
@@ -424,7 +424,6 @@ st.markdown("""
     /* --- BACKGROUND & GLOBAL --- */
     .stApp {
         background-color: #271759;
-        /* Matches the ColorSpace image gradient: Deep Purple -> Blue -> Mint/Teal */
         background-image: linear-gradient(120deg, #271759 0%, #0a719c 45%, #11c99f 100%);
         background-attachment: fixed;
         background-size: cover;
@@ -434,43 +433,85 @@ st.markdown("""
 
     /* --- SIDEBAR GLASS --- */
     [data-testid="stSidebar"] {
-        background: rgba(10, 10, 25, 0.35);
-        backdrop-filter: blur(20px);
-        border-right: 1px solid rgba(255,255,255,0.1);
+        background: rgba(15, 23, 42, 0.45) !important; /* Deep navy glass matching image */
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border-right: 1px solid rgba(255,255,255,0.08);
+    }
+    
+    /* --- SIDEBAR TITLES & TEXT --- */
+    [data-testid="stSidebar"] .titan-title {
+        font-size: 15px;
+        font-weight: 800;
+        color: #ffffff;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 5px;
+        margin-top: 10px;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.5);
     }
 
-    /* --- NAVIGATION MENU STYLING --- */
+    /* --- NAVIGATION MENU TILES (FLUID UI) --- */
     [data-testid="stSidebar"] [data-testid="stRadio"] label > div:first-child { display: none; }
     [data-testid="stSidebar"] [data-testid="stRadio"] > label { display: none !important; }
-    [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] { gap: 8px; }
+    [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] { gap: 12px; }
 
     /* Unselected Tile */
     [data-testid="stSidebar"] [data-testid="stRadio"] label {
-        background: rgba(255, 255, 255, 0.05);
-        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(30, 41, 59, 0.5); /* Frosted dark blue */
+        border: 1px solid rgba(255, 255, 255, 0.06);
         border-radius: 12px;
-        padding: 12px 16px !important;
-        margin-bottom: 4px !important;
-        transition: all 0.3s ease;
+        padding: 14px 16px !important;
+        margin-bottom: 0px !important;
+        transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+        display: flex;
+        align-items: center;
+        justify-content: center; /* Uniform center alignment */
+        width: 90%; /* Fixed relative width to match screenshot sizing */
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+        backdrop-filter: blur(10px);
     }
     [data-testid="stSidebar"] [data-testid="stRadio"] label:hover {
-        background: rgba(255, 255, 255, 0.15);
-        transform: translateX(4px);
-        border-color: #1DD3A6; /* Teal hover */
+        background: rgba(61, 97, 255, 0.15);
+        transform: translateY(-2px);
+        border-color: rgba(61, 97, 255, 0.5);
+        box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2), 0 0 12px rgba(61, 97, 255, 0.25);
     }
 
-    /* Selected Tile (Neon Glow based on image) */
+    /* Selected Tile (Glowing Neon Blue) */
     [data-testid="stSidebar"] [data-testid="stRadio"] label:has(input:checked) {
-        background: rgba(61, 97, 255, 0.2);
-        border: 1px solid #3D61FF;
-        box-shadow: 0 0 15px rgba(61, 97, 255, 0.4);
+        background: rgba(30, 58, 138, 0.8); /* Deep solid blue */
+        border: 1px solid #3b82f6; /* Bright blue glowing border */
+        box-shadow: 0 0 20px rgba(59, 130, 246, 0.35), inset 0 0 10px rgba(59, 130, 246, 0.15);
+        transform: scale(1.03); /* Slight pop out effect */
     }
+
+    /* Tile Typography */
     [data-testid="stSidebar"] [data-testid="stRadio"] label p {
-        color: #e2e8f0; font-weight: 500; font-size: 15px;
+        color: #e2e8f0; font-weight: 600; font-size: 15px; margin: 0;
     }
     [data-testid="stSidebar"] [data-testid="stRadio"] label:has(input:checked) p {
-        color: #ffffff !important; font-weight: 700;
-        text-shadow: 0 0 5px rgba(61, 97, 255, 0.6);
+        color: #ffffff !important; font-weight: 800;
+        text-shadow: 0 0 8px rgba(255, 255, 255, 0.3);
+        letter-spacing: 0.5px;
+    }
+    
+    /* --- SIDEBAR BUTTONS (Like CLOCK IN) --- */
+    [data-testid="stSidebar"] div.stButton > button[kind="primary"] {
+        background: #3b82f6 !important; /* Vivid Blue */
+        border-radius: 20px !important; /* Pill shape */
+        padding: 6px 20px !important;
+        width: auto !important; /* Adapts to text rather than full width */
+        font-weight: 700 !important;
+        font-size: 14px !important;
+        box-shadow: 0 4px 15px rgba(59, 130, 246, 0.5) !important;
+        transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
+        margin-top: 5px;
+    }
+    [data-testid="stSidebar"] div.stButton > button[kind="primary"]:hover {
+        transform: translateY(-2px) scale(1.05) !important;
+        box-shadow: 0 6px 20px rgba(59, 130, 246, 0.7) !important;
+        background: #2563eb !important;
     }
 
     /* --- DASHBOARD TILES (Secondary Buttons) --- */
@@ -492,37 +533,29 @@ st.markdown("""
         box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.3);
     }
     
-    /* --- PRIMARY BUTTONS (Actions) - Styled like the #3D61FF blue button in the image --- */
-    div.stButton > button[kind="primary"] {
+    /* --- PRIMARY BUTTONS (Actions - Main Area) --- */
+    .main div.stButton > button[kind="primary"] {
         background: #3D61FF; 
         border: none;
         color: white;
-        border-radius: 30px; /* Pill shape like the image */
+        border-radius: 30px; 
         font-weight: 700;
         letter-spacing: 0.5px;
         box-shadow: 0 4px 15px rgba(61, 97, 255, 0.4);
         transition: all 0.3s ease;
     }
-    div.stButton > button[kind="primary"]:hover {
-        background: #17D29F; /* Switches to the Teal on hover */
+    .main div.stButton > button[kind="primary"]:hover {
+        background: #17D29F; 
         box-shadow: 0 4px 15px rgba(23, 210, 159, 0.5);
         transform: translateY(-2px);
     }
 
     /* --- TITAN ELEMENTS --- */
-    .titan-title, h1, h2, h3 {
+    h1, h2, h3 {
         color: white !important;
         text-shadow: 0px 2px 10px rgba(0,0,0,0.3);
         font-weight: 800;
         letter-spacing: -0.5px;
-    }
-    .user-card {
-        background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.15);
-        border-radius: 16px; padding: 16px; display: flex; align-items: center; gap: 14px;
-    }
-    .time-active {
-        background: rgba(23, 210, 159, 0.15); border: 1px solid rgba(23, 210, 159, 0.4);
-        color: #17D29F; padding: 12px; border-radius: 12px; font-weight: 600; display: flex; align-items: center; gap: 10px;
     }
     .titan-card {
         background: rgba(255, 255, 255, 0.08); backdrop-filter: blur(16px);
@@ -534,19 +567,9 @@ st.markdown("""
         border: 1px solid rgba(255, 255, 255, 0.2) !important; border-radius: 12px !important;
     }
     /* Style Tabs to look modern */
-    .stTabs [data-baseweb="tab-list"] {
-        background-color: transparent;
-        gap: 20px;
-    }
-    .stTabs [data-baseweb="tab"] {
-        color: #e2e8f0;
-        background-color: transparent;
-        border-radius: 8px 8px 0 0;
-    }
-    .stTabs [aria-selected="true"] {
-        color: #17D29F !important;
-        border-bottom-color: #17D29F !important;
-    }
+    .stTabs [data-baseweb="tab-list"] { background-color: transparent; gap: 20px; }
+    .stTabs [data-baseweb="tab"] { color: #e2e8f0; background-color: transparent; border-radius: 8px 8px 0 0; }
+    .stTabs [aria-selected="true"] { color: #17D29F !important; border-bottom-color: #17D29F !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -627,28 +650,29 @@ if not st.session_state.authenticated:
 else:
     user = st.session_state.user
     
-    # --- SIDEBAR ---
+    # --- SIDEBAR UI (MATCHING SCREENSHOT) ---
     st.sidebar.markdown('<div class="titan-title">TITAN OS</div>', unsafe_allow_html=True)
     
+    # Big Boss Style User Card
     st.sidebar.markdown(f"""
-    <div class="user-card">
-        <div style="font-size: 20px; background: rgba(255,255,255,0.15); width: 42px; height: 42px; display: flex; align-items: center; justify-content: center; border-radius: 50%;">{user['avatar']}</div>
+    <div style="background: rgba(30, 41, 59, 0.4); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.05); border-radius: 14px; padding: 14px 16px; margin-bottom: 25px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); display: flex; align-items: center; gap: 14px;">
+        <div style="font-size: 20px; background: rgba(255,255,255,0.1); width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 50%; box-shadow: inset 0 2px 4px rgba(255,255,255,0.1);">{user['avatar']}</div>
         <div style="line-height: 1.3;">
-            <div style="font-weight: 700; font-size: 15px; color: white;">{user['name']}</div>
-            <div style="font-size: 11px; color: #e2e8f0; text-transform: uppercase; letter-spacing: 0.5px;">{user['role']}</div>
+            <div style="font-weight: 800; font-size: 15px; color: white; letter-spacing: 0.2px;">{user['name']}</div>
+            <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">{user['role']}</div>
         </div>
     </div>
     """, unsafe_allow_html=True)
 
-    st.sidebar.markdown('<div style="color: #cbd5e1; font-size: 11px; font-weight: 700; margin-bottom: 10px; margin-top: 15px; text-transform: uppercase; letter-spacing: 1px;">Time Clock</div>', unsafe_allow_html=True)
+    st.sidebar.markdown('<div class="titan-title">TIME CLOCK</div>', unsafe_allow_html=True)
     last_event = get_last_work_event(user['username'])
     is_working = last_event and last_event[0] == 'CLOCK_IN'
     
     if is_working:
         st.sidebar.markdown(f"""
-        <div class="time-active">
-            <div style="width: 8px; height: 8px; background: #17D29F; border-radius: 50%; box-shadow: 0 0 10px #17D29F;"></div>
-            <span>Working since {last_event[1][11:16]}</span>
+        <div style="margin-bottom: 15px; padding: 12px; justify-content: center; display: flex; align-items: center; color: #e2e8f0; font-size: 13px; font-weight: 600; background: rgba(30, 41, 59, 0.4); border: 1px solid rgba(255,255,255,0.05); border-radius: 20px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);">
+            <div style="width: 10px; height: 10px; background: #17D29F; border-radius: 50%; display: inline-block; margin-right: 8px; box-shadow: 0 0 8px #17D29F;"></div>
+            Working since {last_event[1][11:16]}
         </div>
         """, unsafe_allow_html=True)
         if st.sidebar.button("CLOCK OUT", type="primary"):
@@ -656,9 +680,11 @@ else:
             st.success("Shift Ended")
             safe_rerun()
     else:
+        # Currently Offline Pill style
         st.sidebar.markdown(f"""
-        <div class="user-card" style="margin-bottom: 10px; padding: 12px; justify-content: center; color: #e2e8f0; font-size: 13px; background: rgba(255,255,255,0.05);">
-            ⚪ Currently Offline
+        <div style="margin-bottom: 15px; padding: 12px; justify-content: center; display: flex; align-items: center; color: #e2e8f0; font-size: 13px; font-weight: 600; background: rgba(30, 41, 59, 0.4); border: 1px solid rgba(255,255,255,0.05); border-radius: 20px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);">
+            <div style="width: 10px; height: 10px; background: #cbd5e1; border-radius: 50%; display: inline-block; margin-right: 8px;"></div>
+            Currently Offline
         </div>
         """, unsafe_allow_html=True)
         if st.sidebar.button("CLOCK IN", type="primary"):
@@ -666,8 +692,9 @@ else:
             st.success("Shift Started")
             safe_rerun()
 
-    st.sidebar.markdown("<br>", unsafe_allow_html=True)
+    st.sidebar.markdown("<br><br>", unsafe_allow_html=True)
     
+    # Uniform Menu Tiles Navigation
     nav_opts = ["Dashboard", "My Desk", "Team Calendar", "3PL Logistics", "Team & Reports", "Inventory & SOPs", "AI Assistant 🤖"]
     page = st.sidebar.radio("Navigation", nav_opts, label_visibility="hidden")
     
