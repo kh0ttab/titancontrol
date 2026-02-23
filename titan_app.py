@@ -1272,25 +1272,26 @@ else:
                     elif t['priority'] == 'Low': prio_class = "chip-low"
                     # ------------------
                     
-                    st.markdown(f"""
-                    <div class="titan-card" style="padding: 15px; margin-bottom: 5px; border: 1px solid {border_color};">
-                        <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <div style="display:flex; align-items:center; gap: 8px; flex-wrap:wrap;">
-                                <div style="font-size:16px; font-weight:bold; color:white;">{t['title']} {rating_html}</div>
-                                <div class="titan-chip {status_class}">{t['status']}</div>
-                                <div class="titan-chip {prio_class}">{t['priority']}</div>
-                                {overdue_html}
-                            </div>
-                            <div style="font-size:11px; font-weight:bold; color:#e2e8f0; background:rgba(255,255,255,0.1); padding:4px 8px; border-radius:6px; white-space:nowrap; margin-left:10px;">{t['company']}</div>
-                        </div>
-                        <div style="font-size:12px; color:#cbd5e1; margin-top:8px; display:flex; gap:12px;">
-                            <span>👤 {t['assignee']}</span>
-                            <span>📂 {t['category']}</span>
-                            <span>📅 Due: {t['planned_date'] if t.get('planned_date') else 'N/A'}</span>
-                            <span style="color:{'#17D29F' if timer_active else 'white'}">⏱️ {t['act_time']:.2f}h Logged</span>
-                        </div>
-                    </div>
-                    """, unsafe_allow_html=True)
+                    html_str = (
+                        f'<div class="titan-card" style="padding: 15px; margin-bottom: 5px; border: 1px solid {border_color};">'
+                        f'<div style="display:flex; justify-content:space-between; align-items:center;">'
+                        f'<div style="display:flex; align-items:center; gap: 8px; flex-wrap:wrap;">'
+                        f'<div style="font-size:16px; font-weight:bold; color:white;">{t["title"]} {rating_html}</div>'
+                        f'<div class="titan-chip {status_class}">{t["status"]}</div>'
+                        f'<div class="titan-chip {prio_class}">{t["priority"]}</div>'
+                        f'{overdue_html}'
+                        f'</div>'
+                        f'<div style="font-size:11px; font-weight:bold; color:#e2e8f0; background:rgba(255,255,255,0.1); padding:4px 8px; border-radius:6px; white-space:nowrap; margin-left:10px;">{t["company"]}</div>'
+                        f'</div>'
+                        f'<div style="font-size:12px; color:#cbd5e1; margin-top:8px; display:flex; gap:12px; flex-wrap:wrap;">'
+                        f'<span>👤 {t["assignee"]}</span>'
+                        f'<span>📂 {t["category"]}</span>'
+                        f'<span>📅 Due: {t.get("planned_date", "N/A")}</span>'
+                        f'<span style="color:{"#17D29F" if timer_active else "white"}">⏱️ {t["act_time"]:.2f}h Logged</span>'
+                        f'</div>'
+                        f'</div>'
+                    )
+                    st.markdown(html_str, unsafe_allow_html=True)
                 
                 with c_timer:
                     if t['status'] != 'Done':
