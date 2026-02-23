@@ -349,16 +349,16 @@ def get_task_by_id(task_id):
     conn.close()
     return dict(row) if row else None
 
-def add_task(title, assignee, company, category):
+def add_task(title, assignee, company, category, planned_date):
     conn = get_db()
     conn.execute("INSERT INTO tasks (title, assignee, company, category, priority, status, planned_date, act_time) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                 (title, assignee, company, category, "Medium", "To Do", str(datetime.date.today()), 0.0))
+                 (title, assignee, company, category, "Medium", "To Do", str(planned_date), 0.0))
     conn.commit()
     conn.close()
 
-def update_task(task_id, status, assignee, act_time):
+def update_task(task_id, status, assignee, act_time, planned_date):
     conn = get_db()
-    conn.execute("UPDATE tasks SET status=?, assignee=?, act_time=? WHERE id=?", (status, assignee, act_time, task_id))
+    conn.execute("UPDATE tasks SET status=?, assignee=?, act_time=?, planned_date=? WHERE id=?", (status, assignee, act_time, str(planned_date), task_id))
     conn.commit()
     conn.close()
 
@@ -731,6 +731,7 @@ st.markdown("""
     .chip-high { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
     .chip-med { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); }
     .chip-low { background: rgba(148, 163, 184, 0.1); color: #94a3b8; border: 1px solid rgba(148, 163, 184, 0.2); }
+    .chip-overdue { background: rgba(220, 38, 38, 0.2) !important; color: #fca5a5 !important; border: 1px solid rgba(220, 38, 38, 0.5) !important; }
     
     /* --- INPUTS, SELECTBOXES & MULTISELECTS (Solid Slate Design) --- */
     .stTextInput input, 
@@ -1048,6 +1049,7 @@ else:
                         <p><b>Company:</b> {t['company']}</p>
                         <p><b>Category:</b> {t['category']}</p>
                         <p><b>Status:</b> {t['status']}</p>
+                        <p><b>Planned Date:</b> {t['planned_date']}</p>
                         <p><b>Total Time:</b> {t['act_time']:.2f} hrs</p>
                     </div>
                     """, unsafe_allow_html=True)
@@ -1119,7 +1121,7 @@ else:
             st.markdown(f"### 🔎 {st.session_state.dash_filter} Tasks")
             
             # Filters
-            fc1, fc2, fc3 = st.columns([2, 1, 1])
+            fc1, fc2, fc3, fc4 = st.columns([2, 1, 1, 1])
             search = fc1.text_input("Search", placeholder="Search tasks...", label_visibility="collapsed")
             
             all_companies = sorted(list(set([t['company'] for t in tasks if t['company']])))
@@ -1127,6 +1129,7 @@ else:
             
             filter_company = fc2.multiselect("Company", all_companies, placeholder="Company", label_visibility="collapsed")
             filter_priority = fc3.multiselect("Priority", all_priorities, placeholder="Priority", label_visibility="collapsed")
+            filter_timing = fc4.selectbox("Timing", ["All Time", "Due Today", "Overdue", "Next 7 Days"], label_visibility="collapsed")
 
             # Filter Logic
             filtered = tasks
@@ -1140,11 +1143,22 @@ else:
             if filter_priority:
                 filtered = [t for t in filtered if t['priority'] in filter_priority]
 
+            # Timing Logic
+            today_str = str(datetime.date.today())
+            next_7_str = str(datetime.date.today() + datetime.timedelta(days=7))
+            
+            if filter_timing == "Due Today":
+                filtered = [t for t in filtered if t.get('planned_date') == today_str]
+            elif filter_timing == "Overdue":
+                filtered = [t for t in filtered if t.get('planned_date') and t['planned_date'] < today_str and t['status'] != 'Done']
+            elif filter_timing == "Next 7 Days":
+                filtered = [t for t in filtered if t.get('planned_date') and today_str <= t['planned_date'] <= next_7_str]
+
             # Modern Data Grid with Selection
             df = pd.DataFrame(filtered)
             if not df.empty:
                 event = st.dataframe(
-                    df[['title', 'assignee', 'company', 'status', 'priority', 'act_time']],
+                    df[['title', 'assignee', 'company', 'status', 'priority', 'planned_date', 'act_time']],
                     use_container_width=True,
                     on_select="rerun",
                     selection_mode="single-row",
@@ -1153,6 +1167,7 @@ else:
                         "status": st.column_config.TextColumn("Status"),
                         "priority": st.column_config.Column("Priority", width="small"),
                         "company": st.column_config.Column("Company", width="medium"),
+                        "planned_date": st.column_config.TextColumn("Due Date"),
                         "title": st.column_config.Column("Task", width="large")
                     },
                     hide_index=True
@@ -1219,14 +1234,15 @@ else:
                 except: def_idx = 0
                 assignee = c2.selectbox("Assign To", names, index=def_idx)
                 
-                c3, c4 = st.columns(2)
+                c3, c4, c5 = st.columns([2, 2, 2])
                 comps = get_companies()
                 if not comps: comps = ["Internal"]
                 comp = c3.selectbox("Company", comps)
                 cat = c4.selectbox("Category", ["Admin", "Sales", "Logistics", "IT", "Research"])
+                p_date = c5.date_input("Planned Date", datetime.date.today())
                 
                 if st.form_submit_button("Create Task", type="primary"):
-                    add_task(title, assignee, comp, cat)
+                    add_task(title, assignee, comp, cat, p_date)
                     st.success("Task Created")
                     safe_rerun()
         
@@ -1242,6 +1258,10 @@ else:
                     border_color = "#3D61FF" if timer_active else ("#17D29F" if t['status']=='Done' else "rgba(255,255,255,0.08)")
                     rating_html = f"<span style='color:#fbbf24; margin-left:10px;'>{'★'*t['rating']}</span>" if t['rating'] else ""
                     
+                    today_str = str(datetime.date.today())
+                    is_overdue = bool(t.get('planned_date')) and t['planned_date'] < today_str and t['status'] != 'Done'
+                    overdue_html = '<div class="titan-chip chip-overdue" style="margin-left:8px;">🚨 OVERDUE</div>' if is_overdue else ''
+
                     # --- CHIP LOGIC ---
                     status_class = "chip-todo"
                     if t['status'] == 'In Progress': status_class = "chip-progress"
@@ -1259,12 +1279,14 @@ else:
                                 <div style="font-size:16px; font-weight:bold; color:white;">{t['title']} {rating_html}</div>
                                 <div class="titan-chip {status_class}">{t['status']}</div>
                                 <div class="titan-chip {prio_class}">{t['priority']}</div>
+                                {overdue_html}
                             </div>
                             <div style="font-size:11px; font-weight:bold; color:#e2e8f0; background:rgba(255,255,255,0.1); padding:4px 8px; border-radius:6px; white-space:nowrap; margin-left:10px;">{t['company']}</div>
                         </div>
                         <div style="font-size:12px; color:#cbd5e1; margin-top:8px; display:flex; gap:12px;">
                             <span>👤 {t['assignee']}</span>
                             <span>📂 {t['category']}</span>
+                            <span>📅 Due: {t['planned_date'] if t.get('planned_date') else 'N/A'}</span>
                             <span style="color:{'#17D29F' if timer_active else 'white'}">⏱️ {t['act_time']:.2f}h Logged</span>
                         </div>
                     </div>
@@ -1306,8 +1328,16 @@ else:
                         n_assignee = st.selectbox("Re-Assign", user_list, index=curr_idx, key=f"as_{t['id']}")
                         n_stat = st.selectbox("Status", ["To Do", "In Progress", "Done"], index=["To Do", "In Progress", "Done"].index(t['status']), key=f"s_{t['id']}")
                         n_time = st.number_input("Time (Hrs)", value=t['act_time'], key=f"t_{t['id']}")
+                        
+                        try:
+                            curr_date = datetime.datetime.strptime(t['planned_date'], "%Y-%m-%d").date() if t.get('planned_date') else datetime.date.today()
+                        except:
+                            curr_date = datetime.date.today()
+                            
+                        n_date = st.date_input("Planned Date", value=curr_date, key=f"pd_{t['id']}")
+                        
                         if st.button("Update", key=f"up_{t['id']}", type="primary"):
-                            update_task(t['id'], n_stat, n_assignee, n_time)
+                            update_task(t['id'], n_stat, n_assignee, n_time, n_date)
                             safe_rerun()
                 
                 with c_comment:
