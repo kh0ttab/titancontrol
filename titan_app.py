@@ -330,6 +330,16 @@ def get_tasks():
     conn.close()
     return rows
 
+def get_running_task_for_user(username):
+    """Fetches the active task currently being timed by the user"""
+    conn = get_db()
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    c.execute("SELECT * FROM tasks WHERE assignee=? AND timer_start IS NOT NULL ORDER BY timer_start DESC LIMIT 1", (username,))
+    row = c.fetchone()
+    conn.close()
+    return dict(row) if row else None
+
 def get_task_by_id(task_id):
     conn = get_db()
     conn.row_factory = sqlite3.Row
@@ -556,6 +566,23 @@ st.markdown("""
         70% { box-shadow: 0 0 0 6px rgba(23, 210, 159, 0); }
         100% { box-shadow: 0 0 0 0 rgba(23, 210, 159, 0); }
     }
+
+    /* --- GLOBAL ACTIVE TIMER BAR STICKY CSS --- */
+    div.main .block-container > div:has(.active-timer-marker) {
+        position: sticky !important;
+        top: 2.875rem !important; /* Streamlit header offset */
+        z-index: 990 !important;
+        background: rgba(15, 23, 42, 0.85) !important;
+        backdrop-filter: blur(16px) !important;
+        -webkit-backdrop-filter: blur(16px) !important;
+        border: 1px solid rgba(23, 210, 159, 0.4) !important;
+        border-radius: 12px !important;
+        padding: 12px 20px !important;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.5), 0 0 15px rgba(23, 210, 159, 0.1) !important;
+        margin-bottom: 1.5rem !important;
+        transition: all 0.3s ease;
+    }
+    .active-timer-marker { display: none; }
 
     /* --- SECONDARY BUTTONS (Solid & Neat UI - NO GLASS) --- */
     div.stButton > button[kind="secondary"] {
@@ -921,6 +948,39 @@ else:
     if st.sidebar.button("LOGOUT", type="primary"):
         st.session_state.authenticated = False
         safe_rerun()
+
+    # --- ACTIVE TIMER BAR (GLOBAL) ---
+    active_task = get_running_task_for_user(user['name'])
+    if active_task:
+        with st.container():
+            st.markdown('<div class="active-timer-marker"></div>', unsafe_allow_html=True)
+            
+            # Calculate elapsed time
+            start_dt = datetime.datetime.strptime(active_task['timer_start'], "%Y-%m-%d %H:%M:%S")
+            elapsed = datetime.datetime.now() - start_dt
+            elapsed_hours = int(elapsed.total_seconds() // 3600)
+            elapsed_minutes = int((elapsed.total_seconds() % 3600) // 60)
+            elapsed_str = f"{elapsed_hours}h {elapsed_minutes}m"
+            started_at = start_dt.strftime("%H:%M")
+            company_str = active_task['company'] if active_task['company'] else 'Internal'
+            
+            c1, c2, c3 = st.columns([3, 1, 1])
+            with c1:
+                st.markdown(f"""
+                    <div style="display: flex; align-items: center; gap: 10px; padding-top: 5px;">
+                        <div style="width: 10px; height: 10px; background: #17D29F; border-radius: 50%; box-shadow: 0 0 8px #17D29F; animation: pulse-dot 2s infinite;"></div>
+                        <b style="color: white; font-size: 15px; letter-spacing: 0.3px;">{active_task['title']}</b>
+                        <span style="color: #cbd5e1; font-size: 13px;">&nbsp;|&nbsp; 🏢 {company_str} &nbsp;|&nbsp; ⏱️ Started: {started_at} (Elapsed: {elapsed_str})</span>
+                    </div>
+                """, unsafe_allow_html=True)
+            with c2:
+                if st.button("⏸ Pause", key="global_pause", type="secondary", use_container_width=True):
+                    handle_task_timer(active_task['id'], 'pause')
+                    safe_rerun()
+            with c3:
+                if st.button("⏹ Stop & Finish", key="global_stop", type="primary", use_container_width=True):
+                    handle_task_timer(active_task['id'], 'stop')
+                    safe_rerun()
 
     # --- PAGE: DASHBOARD ---
     if page == "Dashboard":
