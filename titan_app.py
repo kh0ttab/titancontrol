@@ -429,6 +429,21 @@ st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
 
+    :root {
+      --titan-surface: #1e293b;
+      --titan-surface-2: #334155;
+      --titan-border: rgba(148, 163, 184, 0.35);
+      --titan-border-2: rgba(148, 163, 184, 0.55);
+      --titan-text: #f8fafc;
+      --titan-muted: #cbd5e1;
+      --titan-focus: rgba(23, 210, 159, 0.35);
+    }
+
+    /* Make sure ALL text inside buttons is readable (Streamlit wraps labels in nested tags) */
+    div.stButton > button[kind] * {
+      color: var(--titan-text) !important;
+    }
+
     /* --- BACKGROUND & GLOBAL --- */
     .stApp {
         background-color: #271759;
@@ -544,20 +559,62 @@ st.markdown("""
 
     /* --- SECONDARY BUTTONS (Solid & Neat UI - NO GLASS) --- */
     div.stButton > button[kind="secondary"] {
-        background: #1e293b; /* Solid elegant slate blue */
-        border: 1px solid #334155;
-        color: #f8fafc;
-        border-radius: 6px; /* Neat corners */
-        transition: all 0.2s ease;
-        padding: 6px 14px;
-        white-space: pre-wrap;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      background: var(--titan-surface) !important;
+      border: 1px solid var(--titan-border) !important;
+      color: var(--titan-text) !important;
+      border-radius: 8px !important;
+      padding: 8px 14px !important;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.16) !important;
+      transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease !important;
     }
+
     div.stButton > button[kind="secondary"]:hover {
-        background: #334155; /* Slightly lighter solid */
-        border-color: #475569;
-        transform: translateY(-1px);
-        color: white;
+      background: var(--titan-surface-2) !important;
+      border-color: var(--titan-border-2) !important;
+      transform: translateY(-1px) !important;
+    }
+
+    div.stButton > button[kind="secondary"]:focus-visible {
+      outline: 2px solid var(--titan-focus) !important;
+      outline-offset: 2px !important;
+    }
+
+    div.stButton > button[kind="secondary"]:disabled {
+      opacity: 0.55 !important;
+      cursor: not-allowed !important;
+      transform: none !important;
+    }
+
+    /* Popover trigger buttons (✏️, 💬, ⭐) — these are the “white squares” in your screenshot */
+    div[data-testid="stPopover"] > button,
+    div[data-testid="stPopover"] button {
+      background: var(--titan-surface) !important;
+      border: 1px solid var(--titan-border) !important;
+      color: var(--titan-text) !important;
+      border-radius: 10px !important;
+      min-height: 40px !important;
+      padding: 6px 12px !important;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.16) !important;
+      transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease !important;
+    }
+
+    div[data-testid="stPopover"] > button:hover,
+    div[data-testid="stPopover"] button:hover {
+      background: var(--titan-surface-2) !important;
+      border-color: var(--titan-border-2) !important;
+      transform: translateY(-1px) !important;
+    }
+
+    div[data-testid="stPopover"] > button:focus-visible,
+    div[data-testid="stPopover"] button:focus-visible {
+      outline: 2px solid var(--titan-focus) !important;
+      outline-offset: 2px !important;
+    }
+
+    /* Optional: placeholder readability (often too faint) */
+    input::placeholder {
+      color: rgba(203,213,225,0.75) !important;
+      opacity: 1 !important;
     }
     
     /* --- PRIMARY BUTTONS (Main Action UI - NO GLASS) --- */
@@ -599,7 +656,7 @@ st.markdown("""
         background-color: #1e293b !important; /* Solid elegant slate blue */
         color: white !important;
         border: 1px solid #334155 !important; 
-        border-radius: 6px !important;
+        border-radius: 8px !important;
         box-shadow: inset 0 2px 4px rgba(0,0,0,0.1) !important;
         transition: all 0.2s ease !important;
     }
