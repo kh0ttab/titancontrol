@@ -419,6 +419,25 @@ def handle_task_timer(task_id, action, username=None):
     conn.commit()
     conn.close()
 
+def pause_all_running_tasks_for_user(username):
+    """Auto-pauses all running tasks for a user (used on clock-out and logout)."""
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("SELECT id, timer_start, act_time, title FROM tasks WHERE assignee=? AND timer_start IS NOT NULL", (username,))
+    running_tasks = c.fetchall()
+    
+    for r_task in running_tasks:
+        r_id, r_start_ts, r_act_time, r_title = r_task
+        r_act_time = r_act_time if r_act_time else 0.0
+        if r_start_ts:
+            r_start_dt = datetime.datetime.strptime(r_start_ts, "%Y-%m-%d %H:%M:%S")
+            r_diff_hours = (datetime.datetime.now() - r_start_dt).total_seconds() / 3600.0
+            r_new_act = r_act_time + r_diff_hours
+            c.execute("UPDATE tasks SET timer_start=NULL, act_time=? WHERE id=?", (r_new_act, r_id))
+            
+    conn.commit()
+    conn.close()
+
 # --- SHIPMENT FUNCTIONS ---
 def get_shipments():
     conn = get_db()
@@ -942,8 +961,9 @@ else:
         </div>
         """, unsafe_allow_html=True)
         if st.sidebar.button("CLOCK OUT", type="primary"):
+            pause_all_running_tasks_for_user(user['name'])
             log_work_event(user['username'], 'CLOCK_OUT')
-            st.success("Shift Ended")
+            st.success("Shift Ended. All active tasks paused.")
             safe_rerun()
     else:
         # Seamless Offline Indicator
@@ -966,6 +986,7 @@ else:
     
     st.sidebar.markdown("<br><br>", unsafe_allow_html=True)
     if st.sidebar.button("LOGOUT", type="primary"):
+        pause_all_running_tasks_for_user(user['name'])
         st.session_state.authenticated = False
         safe_rerun()
 
