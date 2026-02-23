@@ -647,6 +647,24 @@ st.markdown("""
         border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.12);
         padding: 24px; box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.1); margin-bottom: 15px;
     }
+
+    /* --- TITAN CHIPS --- */
+    .titan-chip {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 6px;
+        font-size: 10.5px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        white-space: nowrap;
+    }
+    .chip-done { background: rgba(23, 210, 159, 0.15); color: #17D29F; border: 1px solid rgba(23, 210, 159, 0.3); }
+    .chip-progress { background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3); }
+    .chip-todo { background: rgba(148, 163, 184, 0.15); color: #cbd5e1; border: 1px solid rgba(148, 163, 184, 0.3); }
+    .chip-high { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
+    .chip-med { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); }
+    .chip-low { background: rgba(148, 163, 184, 0.1); color: #94a3b8; border: 1px solid rgba(148, 163, 184, 0.2); }
     
     /* --- INPUTS, SELECTBOXES & MULTISELECTS (Solid Slate Design) --- */
     .stTextInput input, 
@@ -1123,13 +1141,27 @@ else:
                     border_color = "#3D61FF" if timer_active else ("#17D29F" if t['status']=='Done' else "rgba(255,255,255,0.08)")
                     rating_html = f"<span style='color:#fbbf24; margin-left:10px;'>{'★'*t['rating']}</span>" if t['rating'] else ""
                     
+                    # --- CHIP LOGIC ---
+                    status_class = "chip-todo"
+                    if t['status'] == 'In Progress': status_class = "chip-progress"
+                    elif t['status'] == 'Done': status_class = "chip-done"
+                    
+                    prio_class = "chip-med"
+                    if t['priority'] == 'High': prio_class = "chip-high"
+                    elif t['priority'] == 'Low': prio_class = "chip-low"
+                    # ------------------
+                    
                     st.markdown(f"""
                     <div class="titan-card" style="padding: 15px; margin-bottom: 5px; border: 1px solid {border_color};">
                         <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <div style="font-size:16px; font-weight:bold; color:white;">{t['title']} {rating_html}</div>
-                            <div style="font-size:11px; font-weight:bold; color:#e2e8f0; background:rgba(255,255,255,0.15); padding:2px 8px; border-radius:4px;">{t['company']}</div>
+                            <div style="display:flex; align-items:center; gap: 8px; flex-wrap:wrap;">
+                                <div style="font-size:16px; font-weight:bold; color:white;">{t['title']} {rating_html}</div>
+                                <div class="titan-chip {status_class}">{t['status']}</div>
+                                <div class="titan-chip {prio_class}">{t['priority']}</div>
+                            </div>
+                            <div style="font-size:11px; font-weight:bold; color:#e2e8f0; background:rgba(255,255,255,0.1); padding:4px 8px; border-radius:6px; white-space:nowrap; margin-left:10px;">{t['company']}</div>
                         </div>
-                        <div style="font-size:12px; color:#cbd5e1; margin-top:5px; display:flex; gap:10px;">
+                        <div style="font-size:12px; color:#cbd5e1; margin-top:8px; display:flex; gap:12px;">
                             <span>👤 {t['assignee']}</span>
                             <span>📂 {t['category']}</span>
                             <span style="color:{'#17D29F' if timer_active else 'white'}">⏱️ {t['act_time']:.2f}h Logged</span>
