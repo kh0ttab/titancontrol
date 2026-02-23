@@ -368,10 +368,30 @@ def rate_task(task_id, rating, feedback):
     conn.commit()
     conn.close()
 
-def handle_task_timer(task_id, action):
+def handle_task_timer(task_id, action, username=None):
     """Handles Start, Pause, and Stop explicitly without toggle ambiguity"""
+    if not username and 'user' in st.session_state:
+        username = st.session_state.user['name']
+        
     conn = get_db()
     c = conn.cursor()
+    
+    # --- SAFETY RULE: Auto-pause any other running tasks for this user ---
+    if action == 'start' and username:
+        c.execute("SELECT id, timer_start, act_time, title FROM tasks WHERE assignee=? AND timer_start IS NOT NULL AND id != ?", (username, task_id))
+        running_tasks = c.fetchall()
+        
+        for r_task in running_tasks:
+            r_id, r_start_ts, r_act_time, r_title = r_task
+            r_act_time = r_act_time if r_act_time else 0.0
+            if r_start_ts:
+                r_start_dt = datetime.datetime.strptime(r_start_ts, "%Y-%m-%d %H:%M:%S")
+                r_diff_hours = (datetime.datetime.now() - r_start_dt).total_seconds() / 3600.0
+                r_new_act = r_act_time + r_diff_hours
+                c.execute("UPDATE tasks SET timer_start=NULL, act_time=? WHERE id=?", (r_new_act, r_id))
+                st.toast(f"Auto-paused '{r_title}'.")
+                
+    # --- Process current task action ---
     c.execute("SELECT timer_start, act_time FROM tasks WHERE id=?", (task_id,))
     row = c.fetchone()
     
@@ -975,11 +995,11 @@ else:
                 """, unsafe_allow_html=True)
             with c2:
                 if st.button("⏸ Pause", key="global_pause", type="secondary", use_container_width=True):
-                    handle_task_timer(active_task['id'], 'pause')
+                    handle_task_timer(active_task['id'], 'pause', user['name'])
                     safe_rerun()
             with c3:
                 if st.button("⏹ Stop & Finish", key="global_stop", type="primary", use_container_width=True):
-                    handle_task_timer(active_task['id'], 'stop')
+                    handle_task_timer(active_task['id'], 'stop', user['name'])
                     safe_rerun()
 
     # --- PAGE: DASHBOARD ---
@@ -1017,14 +1037,14 @@ else:
                             st.info("Timer is RUNNING")
                             tc1, tc2 = st.columns(2)
                             if tc1.button("⏸ Pause Timer", key="det_pause", type="secondary", use_container_width=True):
-                                handle_task_timer(t['id'], 'pause')
+                                handle_task_timer(t['id'], 'pause', user['name'])
                                 safe_rerun()
                             if tc2.button("⏹ Stop & Finish", key="det_stop", type="primary", use_container_width=True):
-                                handle_task_timer(t['id'], 'stop')
+                                handle_task_timer(t['id'], 'stop', user['name'])
                                 safe_rerun()
                         else:
                             if st.button("▶ Start Timer", key="det_start", type="secondary", use_container_width=True):
-                                handle_task_timer(t['id'], 'start')
+                                handle_task_timer(t['id'], 'start', user['name'])
                                 safe_rerun()
 
                 with c2:
@@ -1235,15 +1255,15 @@ else:
                             st.markdown(f"<div style='color:#17D29F; font-size:12px; text-align:center; padding-bottom: 5px;'>Running...</div>", unsafe_allow_html=True)
                             tc1, tc2 = st.columns(2)
                             if tc1.button("⏸ Pause", key=f"pause_{t['id']}", help="Pause without finishing", type="secondary", use_container_width=True):
-                                handle_task_timer(t['id'], 'pause')
+                                handle_task_timer(t['id'], 'pause', user['name'])
                                 safe_rerun()
                             if tc2.button("⏹ Stop", key=f"stop_{t['id']}", help="Stop and Mark Done", type="primary", use_container_width=True):
-                                handle_task_timer(t['id'], 'stop')
+                                handle_task_timer(t['id'], 'stop', user['name'])
                                 safe_rerun()
                         else:
                             st.markdown(f"<div style='height:24px;'></div>", unsafe_allow_html=True)
                             if st.button("▶ Start", key=f"start_{t['id']}", type="secondary", use_container_width=True):
-                                handle_task_timer(t['id'], 'start')
+                                handle_task_timer(t['id'], 'start', user['name'])
                                 safe_rerun()
                     else:
                         if user['is_admin'] and not t['rating']:
